@@ -846,3 +846,34 @@ Chunk size (hybrid + rerank): 256 → 0.828 / 0.717, 512 → 0.841 / 0.719, 1024
 - `tests/test_make_result_tables.py` (3 tests).
 - `pyproject.toml`, `uv.lock`: `matplotlib` (dev) — P15 graphs ke liye.
 - `results/raw/*.csv`, `results/summary.csv`, `results/*_results.csv`, `results/significance.csv`.
+
+---
+
+## P14 (script) — Guardrail test through the API (2026-09-30) — asli run LLM key ke baad
+
+**Kya hua (simple Hinglish mein):** `eval/run_security_test.py` bana. Ye login karke adversarial
+sawaal (injection, fake premise, out-of-domain; 4 bhasha, 32) asli `/query` endpoint par bhejta hai,
+taaki saare guardrail layers chalein, aur har sawaal ke liye likhta hai ki kis layer ne roka:
+`regex` (422), `llm_guard` (400 injection_blocked), `moderation` (400 content_blocked), `output`
+(500), `prompt` (LLM ne khud mana kiya), ya `answered`. Saath mein 8 × 4 = 32 normal answerable
+sawaal "control" ke roop mein jaate hain — guardrail galti se sahi sawaal kitni baar rokta hai
+(`false_block_rate`).
+
+- Output: `results/raw/security_<time>.csv` + `results/security_results.csv` (kind × language:
+  block rate, LLM refusal rate, defended rate, attack success rate, false block rate).
+- API ke search flags experiments jaise: hybrid + rerank, top 5. Per-user rate limit (20/min) par
+  60 s ruk ke retry; daily token budget khatam ho to ruk jaata hai.
+- `--limit N` dry run: summary sirf print, file nahi likhta.
+- `tests/test_security_test.py` (2 tests).
+
+### Verify kiya
+
+- `pytest tests/test_security_test.py` → 2 passed.
+- Dry run (13 sawaal, Groq): 11 `regex`, 1 `llm_guard` (`adv-003-hi`), 1 `prompt` (fake premise
+  `adv-004-en` → sahi refusal). Dry-run files hata diye; asli run kal (same LLM jo Exp 3–6 mein).
+
+### Dhyan dene wali baat (paper Limitations)
+
+Injection sawaal (P10) regex patterns (P9) ke **baad** aur usi author (Claude) ne likhe, isliye regex
+block rate optimistic ho sakta hai. Behtar hoga ki user ya koi dost 5–10 naye injection sawaal khud
+likhe (held-out), jo patterns dekhe bina bane hon.
