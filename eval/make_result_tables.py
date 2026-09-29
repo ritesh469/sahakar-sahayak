@@ -147,7 +147,7 @@ def chunking(summ: dict) -> list[dict]:
             "method": method(r), "chunks": ingest.get("chunks", ""),
             "avg_chunk_tokens": ingest.get("avg_chunk_tokens", ""),
             **pick(r, RETRIEVAL_COLS), "retrieval_latency_mean_s": r["retrieval_latency_mean_s"],
-            **{f"{lang}_{m}": r[f"{lang}_{m}"] for lang in LANGS for m in ("recall@5", "mrr")},
+            **{f"{lang}_{m}": r[f"{lang}_{m}"] for lang in LANGS for m in ("n", "recall@5", "mrr")},
             **pick(r, MODEL_COLS),
         })
     return out
@@ -167,7 +167,7 @@ def retrieval(summ: dict) -> list[dict]:
             **pick(r, RUN_COLS), "experiment": "exp2_retrieval", "method": method(r),
             "chunk_size": r["chunk_size"], **pick(r, RETRIEVAL_COLS),
             "retrieval_latency_mean_s": r["retrieval_latency_mean_s"],
-            **{f"{lang}_{m}": r[f"{lang}_{m}"] for lang in LANGS for m in ("recall@5", "mrr")},
+            **{f"{lang}_{m}": r[f"{lang}_{m}"] for lang in LANGS for m in ("n", "recall@5", "mrr")},
             **pick(r, MODEL_COLS),
         })
     return out

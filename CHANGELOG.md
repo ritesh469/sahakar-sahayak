@@ -877,3 +877,32 @@ sawaal "control" ke roop mein jaate hain — guardrail galti se sahi sawaal kitn
 Injection sawaal (P10) regex patterns (P9) ke **baad** aur usi author (Claude) ne likhe, isliye regex
 block rate optimistic ho sakta hai. Behtar hoga ki user ya koi dost 5–10 naye injection sawaal khud
 likhe (held-out), jo patterns dekhe bina bane hon.
+
+---
+
+## P15 — Graphs (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** `scripts/make_plots.py` sirf `results/*.csv` padh ke paper ke graphs
+`results/figures/` mein banata hai. Ek command: `uv run python scripts/make_plots.py`. Har graph par
+axis label (unit ke saath), question count (n = …) aur neeche "Source: <csv>" likha hai. Jin
+experiments ka data abhi nahi (Exp 3–6 answers), unke graph/panel skip hote hain aur kal ke run ke
+baad isi command se ban jaayenge.
+
+| Graph | Kya dikhata hai | Aaj bana? |
+|---|---|---|
+| `recall_at_k.png` | recall@1/3/5, 6 retrieval methods | haan |
+| `mrr.png` | MRR per method | haan |
+| `chunk_size.png` | chunk 256/512/1024: recall@5 + MRR (+ chunk count) | haan |
+| `rerank_effect.png` | rerank off vs on (dense, hybrid; kal: answers wala pair) | haan (retrieval) |
+| `faithfulness.png` | Ragas 4 metrics, rerank off vs on | kal (Exp 3) |
+| `hallucination_rate.png` | Exp 5 (language-wise) + Exp 6 panel | kal |
+| `latency.png` | retrieval ms; kal: retrieval + LLM generation (s) | haan (retrieval) |
+| `language_wise.png` | recall@5 per language; kal: Exp 4 answer metrics panel | haan (retrieval) |
+| `script_match.png` (extra) | tfidf vs bm25 vs dense jab document usi lipi mein ho | haan |
+
+- Colors: dataviz reference palette (categorical 4 slots + ordinal blue), `validate_palette.js` se
+  check — CVD/normal-vision PASS; aqua/yellow ka contrast < 3:1, isliye har bar par value label.
+- `eval/make_result_tables.py`: retrieval/chunking tables mein per-language `n` column (graph titles
+  ke liye; koi number haath se nahi).
+- `tests/test_make_plots.py` (2 tests): nakli CSVs se saare 9 graph bante hain (kal wale panels bhi);
+  CSV na ho to skip. Layout (labels overlap) screenshots dekh ke theek kiya.
