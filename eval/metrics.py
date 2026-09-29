@@ -105,17 +105,35 @@ def refusal_detected(answer: str) -> bool:
     return refusal_type(answer) is not None
 
 
-def answer_outcome(should_answer: bool, answer: str) -> str:
+_DEV_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
+
+
+def states_fact(answer: str, patterns: Iterable[str]) -> bool:
+    """True if any regex matches the answer (case-folded, Devanagari digits -> ASCII,
+    thousands separators removed, so "₹६,०००" and "Rs 6000" both match r"6000")."""
+    a = _norm(answer).translate(_DEV_DIGITS)
+    a = re.sub(r"(?<=\d),(?=\d{2,3}\b)", "", a)
+    return any(re.search(p, a) for p in patterns)
+
+
+def answer_outcome(should_answer: bool, answer: str, adversarial_kind: str | None = None,
+                   correct_facts: Iterable[str] = ()) -> str:
     """Hallucination bookkeeping for one question.
 
-    should_answer=True  (answerable):            answered -> 'answered', refused -> 'over_refusal'
-    should_answer=False (unanswerable/adversarial): refused -> 'correct_refusal',
-                                                    answered -> 'hallucination'
+    answerable:            answered -> 'answered', refused -> 'over_refusal'
+    unanswerable / adversarial: refused -> 'correct_refusal', answered -> 'hallucination'
+    fake_premise:          refused -> 'correct_refusal'; an answer that states the correct fact
+                           (correct_facts) -> 'premise_corrected' (also a good outcome);
+                           any other answer -> 'hallucination'
     """
     refused = refusal_detected(answer)
     if should_answer:
         return "over_refusal" if refused else "answered"
-    return "correct_refusal" if refused else "hallucination"
+    if refused:
+        return "correct_refusal"
+    if adversarial_kind == "fake_premise" and states_fact(answer, correct_facts):
+        return "premise_corrected"
+    return "hallucination"
 
 
 # --- citations ------------------------------------------------------------------------------

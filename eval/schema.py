@@ -102,6 +102,9 @@ class CoopGolden(BaseModel):
     expected_answer: str = ""
     supporting_text: str = ""
     relevant_documents: list[EvidenceRef] = Field(default_factory=list)
+    # fake_premise only: regexes of the correct fact; an answer that states it corrects the
+    # premise ("PM-KISAN gives 6000, not 12000") instead of hallucinating along with it
+    correct_facts: list[str] = Field(default_factory=list)
     verified: bool = False  # True once a human checked the answer (and translation)
     notes: str = ""
 
@@ -122,6 +125,8 @@ class CoopGolden(BaseModel):
             raise ValueError(f"{self.id}: adversarial question needs adversarial_kind")
         if self.type != "adversarial" and self.adversarial_kind is not None:
             raise ValueError(f"{self.id}: adversarial_kind is only for adversarial questions")
+        if self.adversarial_kind == "fake_premise" and not self.correct_facts:
+            raise ValueError(f"{self.id}: fake_premise question needs correct_facts")
         return self
 
 

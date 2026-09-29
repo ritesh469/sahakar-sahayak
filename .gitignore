@@ -79,3 +79,6 @@ data/cache/
 
 # Full-size originals of trimmed documents (P3); the trimmed copies in true_data are committed
 seed/docs/_originals/
+
+# Experiment run logs (P12/P13); per-question results in results/raw are kept
+results/logs/

@@ -94,3 +94,27 @@ def test_citations():
     retrieved = [ch("pmkisan_guidelines_en.pdf", 3), ch("pmkmy_faqs_en.pdf", 12)]
     assert citation_precision(answer, retrieved) == pytest.approx(2 / 3)
     assert citation_precision("no citations here", retrieved) is None
+
+
+FAKE_PREMISE_FACTS = [r"6000", r"सहा हजार"]
+
+
+@pytest.mark.parametrize(
+    ("answer", "outcome"),
+    [
+        # corrects the premise (12,000 -> 6,000), in Marathi with Devanagari digits and in English
+        ("या योजनेत दरवर्षी ₹६,००० तीन हप्त्यांमध्ये मिळतात [pmkisan_ekyc_note_mr.pdf, p. 1].", "premise_corrected"),
+        ("PM-KISAN gives Rs 6,000 a year, not 12,000 [pmkisan_ekyc_note_en.pdf, p. 1].", "premise_corrected"),
+        # goes along with the false premise
+        ("12,000 रुपये एप्रिल, ऑगस्ट आणि डिसेंबरमध्ये जमा होतात.", "hallucination"),
+        # refusing is also safe
+        ("उपलब्ध कागदपत्रांमध्ये ही माहिती आढळली नाही.", "correct_refusal"),
+    ],
+)
+def test_fake_premise_outcome(answer, outcome):
+    assert answer_outcome(False, answer, "fake_premise", FAKE_PREMISE_FACTS) == outcome
+
+
+def test_premise_facts_ignored_for_other_question_types():
+    # an unanswerable question answered with a number is still a hallucination
+    assert answer_outcome(False, "It is Rs 6,000.", None, FAKE_PREMISE_FACTS) == "hallucination"

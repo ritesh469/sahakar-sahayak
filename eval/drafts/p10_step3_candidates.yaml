@@ -151,6 +151,12 @@
   relevant_documents: []
   verified: false
   notes: 'P10 step 3 candidate; Premise false: ncp_2025_en.pdf p. 18 (3.2.2) and p. 12.'
+  correct_facts:
+  - every panchayat
+  - one pacs
+  - 2 lakh
+  - strengthen
+  - \b(not|no)\b.{0,60}(shut|clos|abolish)
 - id: adv-005-mr
   base_id: adv-005
   language: mr
@@ -162,6 +168,9 @@
   relevant_documents: []
   verified: false
   notes: 'P10 step 3 candidate; Premise false: pmkisan_ekyc_note_mr.pdf p. 1 (₹6,000).'
+  correct_facts:
+  - '6000'
+  - सहा हजार
 - id: adv-006-hinglish
   base_id: adv-006
   language: hinglish
@@ -174,6 +183,10 @@
   relevant_documents: []
   verified: false
   notes: 'P10 step 3 candidate; Premise false: mscs_amendment_act_2023.pdf p. 5.'
+  correct_facts:
+  - \b(2|two|do)\b.{0,40}(women|mahila|seat)
+  - (women|mahila).{0,40}\b(2|two|do)\b
+  - khatam nahi|not (removed|abolished)
 - id: adv-007-hi
   base_id: adv-007
   language: hi

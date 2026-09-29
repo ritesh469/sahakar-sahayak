@@ -611,3 +611,58 @@ ke approve karne ke baad hi banegi (CLAUDE.md P10 Step 2).
   mein dekh lo.
 - **P11 ke liye note:** `eval/metrics.answer_outcome` fake-premise sawaal ke sahi jawab (jo premise
   sudhaarta hai) ko bhi "hallucination" ginega → P11 mein alag outcome chahiye.
+
+---
+
+## P11 — Metrics + eval runner (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** `eval/run_experiment.py` bana: ek config (chunk size, search mode,
+rerank, HyDE, CRAG, Self-RAG, top_k) ko saare eval sawaalon par chalata hai, har sawaal ki ek line
+`results/raw/<config>_<time>.csv` mein aur har run ki ek line (overall + language-wise) `results/summary.csv`
+mein likhta hai. `eval/metrics.py` mein saare metrics hain, chhote hand-made examples par tested.
+Purana `eval/run_ragas.py` waise hi hai.
+
+**Metrics aasaan bhasha mein:**
+- **recall@k**: sahi jawab wala chunk top-k mein aaya? (1/0, phir average). Relevant = same file aur
+  (page diya ho to) chunk usi page par ya ek page pehle shuru hota ho. Parallel language versions
+  (NCP en/hi) mein se koi bhi mile to hit.
+- **precision@5**: top 5 mein kitne relevant. **MRR**: pehla relevant chunk kis rank par (1/rank).
+- **refusal**: jawab mein fixed "nahi mila" / out-of-domain sentence (4 bhashaon mein) hai?
+- **hallucination**: unanswerable/adversarial par refusal ki jagah jawab. **over-refusal**: answerable
+  par refusal. **premise_corrected** (naya): fake-premise sawaal par jawab ne galat premise sudhaara
+  (sawaal ke `correct_facts` regex, jaise `6000`, Devanagari digits `६,०००` bhi) — ye bhi achha outcome.
+- **Ragas** (optional, `ragas: true`): faithfulness, answer_relevancy, context_precision,
+  context_recall; judge = `LLM_MODEL_GRADER` on Groq, embeddings = local bge-m3; language-balanced subset
+  (`ragas_limit`).
+- Latency: retrieval, generation, total alag (query cache ka use nahi; timing se pehle warm-up
+  retrieval, taaki model loading pehle sawaal mein na jude).
+
+### Files
+
+- `eval/metrics.py`, `tests/test_metrics.py` (19 tests, fake premise ke 5 naye).
+- `eval/run_experiment.py` (naya): `--config`, `--questions`, `--no-ragas`, `--limit`, `--resume`
+  (Groq limit par ruk jaaye to wahi se); har sawaal ke baad CSV likhta hai (crash-safe); config keys
+  `languages`, `question_types` (budget ke liye filter).
+- `eval/ragas_adapter.py`: OpenAI ki jagah Groq judge (`ChatOpenAI` + Groq base_url), local embeddings,
+  `answer_relevancy.strictness = 1` (Groq ek request mein ek hi completion deta hai).
+- `eval/schema.py`: `correct_facts` (fake_premise ke liye zaroori). Step-3 drafts mein adv-004/005/006
+  ko `correct_facts` diye.
+- `.gitignore`: `results/logs/`.
+
+### Dry run (5 sawaal, hybrid + rerank, 512, Ragas on 3)
+
+| id | recall@5 | MRR | retrieval s | generation s | outcome |
+|---|---|---|---|---|---|
+| ans-017-en (PM-KMY age) | 1 | 1.0 | 62.4 (model load; ab warm-up) | 5.3 | answered |
+| ans-034-en (loan waiver, Marathi GR) | 1 | 1.0 | 1.8 | 1.8 | answered |
+| ans-052-en (MSCS seats) | 1 | 0.5 | 1.5 | 1.2 | answered |
+| unans-001-en (helpline) | – | – | 1.4 | 35.7 (Groq wait) | correct_refusal |
+| adv-005-mr (12,000 fake premise) | – | – | 1.6 | 0.9 | correct_refusal |
+
+Ragas: faithfulness 1.0, answer_relevancy 0.87, context_precision 0.77, context_recall 1.0.
+Summary print mein `mrr` chhup raha tha ("mr" language prefix filter) → theek.
+
+### Dhyan do
+
+- Generation latency mein Groq free tier ke 429 retry-wait bhi jud jaate hain (upar 35.7 s) → paper mein
+  latency ko "free-tier API" ke saath report karna.
