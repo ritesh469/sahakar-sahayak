@@ -198,3 +198,70 @@ isliye `sources.csv` mein sirf header hai.
 - Hindi/Marathi heuristics abhi sirf hand-made samples par test hue hain; asli docs par output dekh ke
   thresholds adjust karne pad sakte hain.
 - Scanned Hindi/Marathi PDFs ke liye OCR support nahi (RapidOCR = Chinese/English).
+
+---
+
+## P3 (poora) — 23 official documents + text quality check (2026-09-29)
+
+**Kya hua (simple Hinglish mein):** Claude ne official sarkari sites se documents dhoondh ke (list
+dikha ke, user ki manzoori ke baad) 25 PDFs download kiye. `check_docs.py` se sab check kiye:
+2 scanned Marathi PDFs kharab nikle (hataye), 1 bahut bada GR kaata. Ab corpus mein **23 documents**
+hain. Badi finding: **har Hindi/Marathi PDF ka text layer kuch had tak toota hua hai** (PDF fonts
+galat Unicode dete hain) — ye paper mein limitation/finding ke roop mein jaayega.
+
+### Corpus (`seed/docs/true_data/`, details `data/sources.csv` mein)
+
+| Language (sources.csv) | Documents | Sources |
+|---|---|---|
+| en | 9 | cooperation.gov.in, pmkisan.gov.in, krishi.maharashtra.gov.in |
+| mr | 7 | krishi.maharashtra.gov.in, sahakarayukta.maharashtra.gov.in, pmkisan.gov.in |
+| hi | 4 | cooperation.gov.in, pmkisan.gov.in |
+| en+hi (bilingual) | 3 | cooperation.gov.in (MSCS Rules), pmkisan.gov.in (PM-KMY) |
+
+Categories: government-scheme 13, cooperative-scheme 4, cooperative-policy 3, cooperative-law 3.
+Parallel versions (paper mein language comparison ke liye): National Cooperation Policy (en/hi),
+Grain Storage Plan SOP (en/hi), PM-KISAN e-KYC note (en/hi/mr), Women Farmers Act (en/mr).
+
+### Faisle (decisions)
+
+| Faisla | Kyun |
+|---|---|
+| 3 badi booklets download nahi ki (Gram Panchayat guide en/hi, Coop-among-Coops SOP; 89 MB) | zyaadatar images, user ne 25 files chuni |
+| RBI KCC circular aur Gopinath Munde guidelines chhode | link HTML/404 de raha tha |
+| `mh_coop_election_panel_guidelines_mr.pdf`, `mh_coop_policy_press_note_mr.pdf` → `seed/docs/_excluded/` | scanned; RapidOCR (Chinese/English) Marathi ko Chinese akshar bana deta hai |
+| `mh_pmfby_gr_2026_mr.pdf` sirf pages 1–52 (GR text + forms) | pp. 53–481 zila-war tables (corpus ka ~43% ho jaata); original `seed/docs/_originals/` (gitignored); page numbers wahi rahe |
+
+### Code
+
+- `scripts/check_docs.py`: naye checks —
+  - **unexpected script**: 5% se zyada letters na Devanagari na Latin (OCR se Chinese akshar) → SUSPICIOUS;
+  - **expected language**: `sources.csv` hi/mr kahe par text Devanagari na ho → SUSPICIOUS;
+  - **damaged Devanagari text layer** (WARN, SUSPICIOUS nahi): shabd jo matra se shuru hon ya jisme
+    do matra lagataar hon (`भारि` = भारत, `मकया` = किया) — asli Hindi/Marathi mein aisa nahi hota;
+  - ab usi `DocumentProcessor.convert()` + disk cache se chalta hai jo ingestion use karta hai
+    (conversion ek hi baar); progress turant print (line buffering).
+- `app/services/text_cleaning.py` (naya): "fake bold" PDFs mein dohraai gayi matra/anusvara ek karna
+  (`महाारााष्ट्र` → `महाराष्ट्र`). Women Farmers Act (mr) ke toote shabd 70% → 15%.
+- `app/services/document_processor.py`: `convert()` + docling JSON cache (`DOC_CACHE_DIR`,
+  default `data/cache/docling`, gitignored); chunk text par `clean_extracted_text`.
+- `app/config.py`, `.env.example`: `DOC_CACHE_DIR` (saath mein aage ke steps ke settings bhi).
+
+### Text layer quality (check_docs, cleaning ke baad: malformed Devanagari words)
+
+| Document | Broken | Document | Broken |
+|---|---|---|---|
+| grain_storage_plan_sop_hi | 13% | ncp_2025_hi | 22% |
+| mh_agri_citizen_charter_schemes_2026_mr | 20% | pmkisan_ekyc_note_hi | 35% |
+| mh_farmer_loan_waiver_2026_mr | 10% | pmkisan_ekyc_note_mr | 12% |
+| mh_fruit_crop_insurance_gr_2026_mr | 18% | pmkisan_hi | 27% |
+| mh_pkvy_gr_mr | 10% | mh_pmfby_gr_2026_mr | 24% |
+| mh_women_farmer_act_2026_mr | 15% | mscs_amendment_rules_2023 (en+hi) | 10% |
+
+pypdfium2, pypdf aur docling_parse — teeno se same toota text aata hai (grain_storage_plan_sop_hi
+p. 6 par check kiya), yaani problem PDF ke andar ki hai, backend ki nahi.
+
+### Verify kiya
+
+- `pytest tests/test_check_docs.py` → 13 passed (OCR Chinese garbage, expected-language mismatch,
+  damaged Devanagari = WARN, clean Hindi/Marathi = 0%).
+- `check_docs.py` final run: **23 files | SUSPICIOUS: 0 | WARN: 16** (sirf Devanagari text-layer warnings).

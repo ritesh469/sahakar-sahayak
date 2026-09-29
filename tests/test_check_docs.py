@@ -63,13 +63,40 @@ def test_little_text_per_page_is_suspicious():
 
 
 def test_odd_symbols_are_suspicious():
-    info = analyze(ENGLISH + "�" * 40, pages=1)
+    info = analyze(ENGLISH + "\ufffd\ue001" * 40, pages=1)
     assert any("odd symbols" in r for r in info["reasons"])
 
 
 def test_few_letters_is_suspicious():
     info = analyze("# $ % & * + = | ~ 1 2 3 4 5 6 7 8 9 0 " * 20, pages=1)
     assert any("few letters" in r for r in info["reasons"])
+
+
+def test_ocr_chinese_garbage_is_suspicious():
+    # What RapidOCR's Chinese model made of a scanned Marathi press note
+    garbage = '"Hgg 打e Hght e" 可gt famaf 3eeeadg a市 e e he E 打j时 打 可 R 可时 3n。 付g 物可可讨 ' * 5
+    info = analyze(garbage, pages=1)
+    assert any("unexpected script" in r for r in info["reasons"])
+
+
+def test_expected_devanagari_but_latin_text():
+    info = analyze(ENGLISH, pages=1, expected_lang="mr")
+    assert any("sources.csv says 'mr'" in r for r in info["reasons"])
+    assert analyze(MARATHI, pages=1, expected_lang="mr")["reasons"] == []
+    assert analyze(ENGLISH, pages=1, expected_lang="en")["reasons"] == []
+
+
+def test_damaged_devanagari_text_layer_is_a_warning():
+    # Extracted text of grain_storage_plan_sop_hi.pdf p. 6: the PDF maps glyphs to wrong
+    # characters ("भारि" = भारत, "सिय" = समय, "मकया" = किया, "िें" = में)
+    damaged = ("भारि ने लंबे सिय से खाद्यान् न भंडारण की किी से संबंमधि चुनौमियों का सािना "
+               "मकया है मजसिें क्षििा की किी सहकाररिा क्षेत्र िें मवश् व की सबसे बडी िई ") * 3
+    info = analyze(damaged, pages=1)
+    assert info["reasons"] == []  # still usable text, so not SUSPICIOUS
+    assert info["broken_dev_pct"] > 0.03
+    assert any("damaged Devanagari" in w for w in info["warnings"])
+    clean = analyze(HINDI + MARATHI, pages=1)
+    assert clean["broken_dev_pct"] == 0.0 and clean["warnings"] == []
 
 
 def test_write_sources_keeps_filled_rows(tmp_path, monkeypatch):

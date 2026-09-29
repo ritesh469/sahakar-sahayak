@@ -73,3 +73,9 @@ seed/docs/noisy_data/*
 *.p12
 *.pfx
 secrets/
+
+# Docling conversion cache (P4)
+data/cache/
+
+# Full-size originals of trimmed documents (P3); the trimmed copies in true_data are committed
+seed/docs/_originals/

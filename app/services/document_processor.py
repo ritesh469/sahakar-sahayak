@@ -1,3 +1,5 @@
+import hashlib
+import json
 from pathlib import Path
 
 from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
@@ -6,9 +8,15 @@ from docling.datamodel.accelerator_options import AcceleratorDevice, Accelerator
 from docling.datamodel.base_models import ConversionStatus, InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling_core.types.doc import DoclingDocument
 from loguru import logger
 
 from app.config import settings
+from app.services.text_cleaning import clean_extracted_text
+
+
+def _file_hash(path: str | Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def _build_tokenizer(max_tokens: int):
@@ -77,6 +85,7 @@ class DocumentProcessor:
         # previous chunk's tail ourselves, so the final chunk stays within chunk_size.
         self.tokenizer = _build_tokenizer(self.chunk_size - self.chunk_overlap)
         self.chunker = HybridChunker(tokenizer=self.tokenizer)
+        self.last_info: dict = {}  # conversion info of the last processed file
 
     def _tail(self, text: str, n_tokens: int) -> str:
         """Last n_tokens of text, decoded back to a string."""
@@ -85,26 +94,56 @@ class DocumentProcessor:
             return tok.decode(tok.encode(text)[-n_tokens:])
         return tok.convert_tokens_to_string(tok.tokenize(text)[-n_tokens:])
 
-    def process_document(self, file_path: str) -> list[dict]:
-        result = self.converter.convert(file_path)
+    def convert(self, file_path: str | Path) -> tuple[DoclingDocument, dict]:
+        """Convert a file with docling; returns (document, info).
+
+        Conversion is the slow part (layout model + OCR), so the result is cached on disk
+        (DOC_CACHE_DIR) keyed by file content + PDF backend. Re-chunking the same file at
+        another CHUNK_SIZE then skips conversion.
+        """
+        name = Path(file_path).name
+        cache_dir = Path(settings.doc_cache_dir) if settings.doc_cache_dir else None
+        if cache_dir:
+            key = f"{_file_hash(file_path)}_{settings.pdf_backend}"
+            doc_path, meta_path = cache_dir / f"{key}.json", cache_dir / f"{key}.meta.json"
+            if doc_path.exists() and meta_path.exists():
+                info = json.loads(meta_path.read_text(encoding="utf-8"))
+                return DoclingDocument.load_from_json(doc_path), {**info, "cached": True}
+
+        result = self.converter.convert(str(file_path))
         doc = result.document
-        source_name = Path(file_path).name
+        pages = doc.num_pages()
+        missing: list[int] = []
         if result.status != ConversionStatus.SUCCESS:
             # Docling keeps going when single pages fail, so make lost pages visible
             converted = {p.page_no for p in result.pages}
-            missing = [n for n in range(1, doc.num_pages() + 1) if n not in converted]
+            missing = [n for n in range(1, pages + 1) if n not in converted]
             logger.warning("{}: conversion {} — pages missing: {} ({} errors)",
-                           source_name, result.status.value, missing, len(result.errors))
+                           name, result.status.value, missing, len(result.errors))
+        info = {"status": result.status.value, "pages": pages, "missing_pages": missing,
+                "errors": [e.error_message for e in result.errors][:5]}
+
+        if cache_dir:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            doc.save_as_json(doc_path)
+            meta_path.write_text(json.dumps(info, ensure_ascii=False), encoding="utf-8")
+        return doc, {**info, "cached": False}
+
+    def process_document(self, file_path: str) -> list[dict]:
+        doc, self.last_info = self.convert(file_path)
+        source_name = Path(file_path).name
         chunk_iter = self.chunker.chunk(doc)
 
         chunks = []
         prev_text = ""
 
         for chunk in chunk_iter:
-            text = chunk.text
+            # Fake-bold PDFs repeat Devanagari vowel signs; collapse them before indexing
+            clean = clean_extracted_text(chunk.text)
+            text = clean
             if self.chunk_overlap and prev_text:
                 text = f"{self._tail(prev_text, self.chunk_overlap).strip()} {text}"
-            prev_text = chunk.text
+            prev_text = clean
             chunks.append({
                 "text": text,
                 "source": source_name,

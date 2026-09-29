@@ -5,8 +5,20 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     openai_api_key: str = ""
-    llm_model_answer: str = "gpt-4o"
-    llm_model_grader: str = "gpt-4o-mini"
+    groq_api_key: str = ""
+    # Chat LLM: "groq" (OpenAI-compatible API) or "openai"
+    llm_provider: str = "groq"
+    llm_model_answer: str = "openai/gpt-oss-120b"
+    # Grader (CRAG, Self-RAG, Ragas) on a different model: Groq limits are per model
+    llm_model_grader: str = "qwen/qwen3.8-27b"
+    llm_reasoning_effort: str = "low"  # gpt-oss only; "" = provider default
+    llm_max_retries: int = 6  # SDK retries with backoff on 429 / 5xx
+
+    # Text2SQL is a leftover of the K8s project: off = no LLM router, every query is RAG
+    # (also hides the Streamlit SQL approval tab)
+    sql_enabled: bool = False
+    # Streamlit upload tab (the API has no upload endpoint; ingest with scripts/seed_db.py)
+    ui_upload_enabled: bool = False
 
     # Embeddings: "local" = sentence-transformers on GPU/CPU, "openai" = OpenAI API
     embedding_backend: str = "local"
@@ -19,6 +31,8 @@ class Settings(BaseSettings):
     # PDF text backend: "pypdfium2" or "docling_parse" (docling default; drops pages with
     # std::bad_alloc on this Windows machine)
     pdf_backend: str = "pypdfium2"
+    # Cache of converted documents (docling JSON); "" disables the cache
+    doc_cache_dir: str = "data/cache/docling"
 
     qdrant_url: str = "http://localhost:6333"
     # Collection name = f"{prefix}_{chunk_size}", one collection per chunk size
@@ -70,14 +84,16 @@ class Settings(BaseSettings):
     hybrid_search_enabled: bool = True
     rrf_k: int = 60
     reranker_backend: str = "local"
-    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
     voyage_api_key: str = ""
     voyage_model: str = "rerank-2.5"
     reranker_initial_top_k: int = 20
     reranking_enabled_by_default: bool = True
     crag_relevance_threshold: float = 0.7
     crag_ambiguous_threshold: float = 0.5
-    crag_enabled_by_default: bool = True
+    crag_enabled_by_default: bool = False
+    # CRAG may replace bad retrieval with Tavily web results; off = answers only from our documents
+    web_fallback_enabled: bool = False
     reflection_min_score: float = 0.85
     max_reflection_retries: int = 2
     self_reflective_enabled_by_default: bool = False

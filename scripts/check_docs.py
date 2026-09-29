@@ -43,19 +43,29 @@ MIN_CHARS_PER_PAGE = 100   # PDFs below this are probably scans that OCR could n
 MIN_LETTER_RATIO = 0.5     # Devanagari + Latin letters / all non-space chars
 MAX_ODD_RATIO = 0.02       # replacement / private-use / control chars
 MIN_LEGACY_RATIO = 0.03    # legacy-font marker tokens / Latin tokens
+MAX_OTHER_SCRIPT = 0.05    # letters that are neither Devanagari nor Latin (e.g. Chinese from OCR)
+MIN_EXPECTED_DEV = 0.2     # a hi/mr document (per sources.csv) needs at least this Devanagari share
+MAX_BROKEN_DEV = 0.03      # WARN above this share of malformed Devanagari words
+
+# Malformed Devanagari word: starts with a dependent sign (matra/virama/anusvara) or has two
+# vowel signs in a row. Real Hindi/Marathi words never do; PDFs whose fonts map glyphs to the
+# wrong Unicode characters (common in government PDFs made from Word) produce many of them,
+# e.g. "भारि" for "भारत", "मकया" for "किया".
+_DEV_WORD = re.compile(r"[\u0900-\u0963\u0966-\u097f\u200c\u200d]+")
+_BROKEN_DEV = re.compile(r"^[\u0901-\u0903\u093e-\u094d]|[\u093e-\u094c]{2}")
 
 
 def is_devanagari(ch: str) -> bool:
-    return "ऀ" <= ch <= "ॿ" or "꣠" <= ch <= "ꣿ"
+    return "\u0900" <= ch <= "\u097f" or "\ua8e0" <= ch <= "\ua8ff"
 
 
 def is_odd(ch: str) -> bool:
     if ch in "\n\r\t":
         return False
-    return ch == "�" or "" <= ch <= "" or unicodedata.category(ch) in {"Cc", "Co", "Cs"}
+    return ch == "\ufffd" or "\ue000" <= ch <= "\uf8ff" or unicodedata.category(ch) in {"Cc", "Co", "Cs"}
 
 
-def analyze(text: str, pages: int) -> dict:
+def analyze(text: str, pages: int, expected_lang: str = "") -> dict:
     chars = [c for c in text if not c.isspace()]
     n = len(chars)
     dev = sum(1 for c in chars if is_devanagari(c))
@@ -90,8 +100,23 @@ def analyze(text: str, pages: int) -> dict:
         reasons.append(f"odd symbols ({odd / n:.1%})")
     if len(latin_words) >= 50 and legacy_hits / len(latin_words) >= MIN_LEGACY_RATIO:
         reasons.append(f"legacy Hindi font? ({legacy_hits} tokens like 'ds','esa','gS')")
+    # RapidOCR's Chinese/English models turn scanned Devanagari into Chinese characters
+    if letters and other_letters / letters > MAX_OTHER_SCRIPT:
+        reasons.append(f"unexpected script ({other_letters / letters:.0%} of letters are not "
+                       "Devanagari/Latin, OCR garbage?)")
+    if expected_lang in ("hi", "mr") and dev_pct < MIN_EXPECTED_DEV:
+        reasons.append(f"sources.csv says '{expected_lang}' but only {dev_pct:.0%} Devanagari")
 
-    return {"chars": n, "dev_pct": dev_pct, "lang": lang, "reasons": reasons}
+    # Usable but degraded: reported as a warning, not SUSPICIOUS
+    dev_tokens = _DEV_WORD.findall(text)
+    broken = sum(1 for w in dev_tokens if _BROKEN_DEV.search(w)) / len(dev_tokens) if dev_tokens else 0.0
+    warnings = []
+    if len(dev_tokens) >= 50 and broken > MAX_BROKEN_DEV:
+        warnings.append(f"damaged Devanagari text layer ({broken:.0%} of words malformed, "
+                        "PDF font encoding): Hindi/Marathi retrieval will suffer")
+
+    return {"chars": n, "dev_pct": dev_pct, "lang": lang, "reasons": reasons,
+            "broken_dev_pct": broken, "warnings": warnings}
 
 
 def collect_files(folder: Path) -> list[Path]:
@@ -99,6 +124,14 @@ def collect_files(folder: Path) -> list[Path]:
         p for p in folder.rglob("*")
         if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS and p.name != ".gitkeep"
     )
+
+
+def read_source_languages() -> dict[str, str]:
+    """filename -> language from data/sources.csv (empty if the file does not exist)."""
+    if not SOURCES_CSV.exists():
+        return {}
+    with SOURCES_CSV.open(encoding="utf-8-sig", newline="") as f:
+        return {r["filename"]: (r.get("language") or "").strip() for r in csv.DictReader(f)}
 
 
 def write_sources(files: list[Path]) -> None:
@@ -128,7 +161,8 @@ def write_sources(files: list[Path]) -> None:
 
 
 def main() -> None:
-    sys.stdout.reconfigure(encoding="utf-8")  # Windows console is cp1252 (setup problem S6)
+    # Windows console is cp1252 (setup problem S6); line buffering shows progress when redirected
+    sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
     parser = argparse.ArgumentParser(description="Check documents before ingestion")
     parser.add_argument("--dir", type=Path, default=DEFAULT_DIR, help="folder to check")
     parser.add_argument("--limit", type=int, default=0, help="only the first N files (0 = all)")
@@ -146,6 +180,7 @@ def main() -> None:
     logging.disable(logging.INFO)
 
     files = collect_files(args.dir)
+    expected = read_source_languages()
     if not files:
         print(f"No documents found in {args.dir}")
         if args.write_sources:
@@ -155,44 +190,52 @@ def main() -> None:
         files = files[: args.limit]
 
     from app.services.document_processor import DocumentProcessor
+    from app.services.text_cleaning import clean_extracted_text
 
-    converter = DocumentProcessor().converter
+    # Same converter + on-disk cache as ingestion, so ingestion reuses these conversions
+    processor = DocumentProcessor()
     print(f"Checking {len(files)} files in {args.dir} (PDF_BACKEND={settings.pdf_backend})\n")
 
     results = []
     for i, path in enumerate(files, start=1):
         t0 = time.time()
         try:
-            res = converter.convert(str(path), raises_on_error=False)
-            doc = res.document
+            doc, conv = processor.convert(path)
             pages = doc.num_pages()
-            text = doc.export_to_text()
-            info = analyze(text, pages)
-            if res.status.value != "success":
-                converted = {p.page_no for p in res.pages}
-                missing = [n for n in range(1, pages + 1) if n not in converted]
-                info["reasons"].insert(0, f"conversion {res.status.value}, pages missing {missing}")
+            text = clean_extracted_text(doc.export_to_text())  # what ingestion indexes
+            info = analyze(text, pages, expected.get(path.name, ""))
+            if conv["status"] != "success":
+                info["reasons"].insert(
+                    0, f"conversion {conv['status']}, pages missing {conv['missing_pages']}"
+                )
             preview = " ".join(text.split())[:PREVIEW_CHARS]
         except Exception as exc:  # noqa: BLE001
             pages, preview = 0, ""
-            info = {"chars": 0, "dev_pct": 0.0, "lang": "?",
+            info = {"chars": 0, "dev_pct": 0.0, "lang": "?", "broken_dev_pct": 0.0, "warnings": [],
                     "reasons": [f"conversion failed: {type(exc).__name__}: {exc}"]}
 
-        status = "SUSPICIOUS" if info["reasons"] else "OK"
+        status = "SUSPICIOUS" if info["reasons"] else ("WARN" if info["warnings"] else "OK")
         results.append((path.name, status, info))
         print(f"[{i}/{len(files)}] {path.name}")
         print(f"    pages={pages or '-'}  chars={info['chars']:,}  lang={info['lang']}  "
-              f"Devanagari={info['dev_pct']:.0%}  ({time.time() - t0:.1f}s)  {status}")
+              f"Devanagari={info['dev_pct']:.0%}  broken={info['broken_dev_pct']:.0%}  "
+              f"({time.time() - t0:.1f}s)  {status}")
         for reason in info["reasons"]:
             print(f"    ! {reason}")
+        for warning in info["warnings"]:
+            print(f"    ~ {warning}")
         print(f"    text: {preview}\n")
 
     langs = Counter(info["lang"] for _, _, info in results)
-    suspicious = [(name, info["reasons"]) for name, status, info in results if status != "OK"]
+    suspicious = [(name, info["reasons"]) for name, status, info in results if status == "SUSPICIOUS"]
+    warned = [(name, info) for name, status, info in results if status == "WARN"]
     print("=" * 70)
-    print(f"{len(results)} files | languages: {dict(langs)} | SUSPICIOUS: {len(suspicious)}")
+    print(f"{len(results)} files | languages: {dict(langs)} | SUSPICIOUS: {len(suspicious)} "
+          f"| WARN: {len(warned)}")
     for name, reasons in suspicious:
         print(f"  SUSPICIOUS  {name}: {'; '.join(reasons)}")
+    for name, info in warned:
+        print(f"  WARN        {name}: {info['broken_dev_pct']:.0%} malformed Devanagari words")
 
     if args.write_sources:
         write_sources(collect_files(args.dir))
