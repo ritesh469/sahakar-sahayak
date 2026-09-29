@@ -34,6 +34,9 @@ class GraphState(TypedDict):
     sources: list[str]
     confidence: float | None
     chunk_previews: list[dict]
+    # ResponseMetadata as a dict (retrieved chunks with page numbers, flags). LangGraph drops
+    # keys that are not declared here, so without it /query returned empty metadata
+    metadata: dict | None
 
     cache_hits: dict[str, bool]
     cost_saved_usd: float

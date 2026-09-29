@@ -360,3 +360,29 @@ Latency: pehla sawaal 30.7 s (bge-m3 + reranker load), baaki 1.7–2.4 s; unansw
   dikhta hai, eval par asar nahi.
 - Hindi sawaal ka citation English document ka hai (dono retrieve hue the) — galat nahi, par
   language-wise analysis (P13) mein dekhna.
+
+---
+
+## P6 — Streamlit UI cleanup (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** Streamlit app ab "Sahakar Sahayak — Cooperative & Scheme Assistant"
+hai. K8s wale hisse hate, SQL approval aur upload tab chhup gaye, sidebar mein 4 bhashaon ke example
+sawaal hain, aur jawab ke neeche sources "filename, p. N" format mein aate hain.
+
+### Kya badla
+
+| File | Badlav |
+|---|---|
+| `scripts/streamlit_app.py` | Title/branding; SQL approval tab sirf `SQL_ENABLED=true` par, upload tab sirf `UI_UPLOAD_ENABLED=true` par (API mein upload endpoint hi nahi hai); search mode dropdown ke options API schema (`/openapi.json`) se aate hain, isliye P8 ke baad `bm25`/`tfidf` apne aap dikhenge; sources "filename, p. N" (`_format_source`); sidebar mein EN/HI/MR/Hinglish example sawaal (Claude ne corpus se chune; badalne ho to `EXAMPLE_QUESTIONS`); "Current Lesson: lesson-9" banner (purane course ka) hataya; login form mein `seed_db.py` ka demo agent pehle se bhara (pehle galat password tha → 401) |
+| `app/core/state.py` | `GraphState` mein `metadata` key. LangGraph undeclared keys chhod deta hai, isliye `/query` ka `metadata.retrieved_chunks` hamesha khaali aata tha aur UI mein page number kabhi nahi dikhta tha |
+
+### Verify kiya
+
+- Browser (in-app preview, port 8502 + API 8001): title/branding, 4 tabs (Auth, Query, History,
+  Evaluation Results; SQL/upload chhupe), sidebar examples, demo login → `200 OK`, example button
+  sawaal ko question box mein daalta hai, search mode dropdown.
+- API `/query` (login + guardrails) Marathi sawaal → Marathi jawab + 5 chunks page ke saath
+  (`mh_women_farmer_act_2026_mr.pdf, p. 9` …). UI mein answer card ka aakhri render browser pane
+  band hone ki wajah se screenshot se confirm nahi hua; format function `_format_source` wahi hai.
+- Pehli API query par llm-guard ~3 GB models download karta hai aur spaCy packages venv mein install
+  karta hai (CLAUDE.md S10) — pehli query 10+ minute le sakti hai.
