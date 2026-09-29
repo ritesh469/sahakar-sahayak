@@ -965,3 +965,19 @@ bias Exp 6 ke baad.
 4. API chala ke `eval/run_security_test.py` (P14).
 5. Paper ke [PENDING] sections, VIVA_NOTES ke "(LLM runs ke baad)" numbers, P18 final check
    (tests + app + 3 demo sawaal), final commit.
+
+---
+
+## P13 prep — $5 OpenAI budget: sasta model, credit khatam par runner ruke (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** User ke paas $5 ka OpenAI credit hai. Pehle socha `gpt-5.4-mini`
+(~$9, budget se bahar) ki jagah ab: jawab `gpt-4.1-mini` ($0.40 / $1.60 per 1M tokens), grader +
+Ragas judge `gpt-4o-mini` ($0.15 / $0.60) — andaazan ~$2.5 poore bache kaam ke liye. `.env` mein
+`LLM_PROVIDER=openai` + ye models (key user khud daalta hai).
+
+- `eval/run_experiment.py`: OpenAI credit khatam hone par aane wala 429 `insufficient_quota` ab
+  daily limit ki tarah pehchana jaata hai → runner retry mein time barbaad nahi karta, sab save
+  karke ruk jaata hai aur `--resume` command deta hai.
+- `tests/test_run_experiment.py`: insufficient_quota case.
+- Runs ka order (zaroori pehle, taaki paise kam padein to bhi main result ho): `exp3_hybrid_rerank`
+  (Exp 3/4/5) → security test (P14) → `exp3_hybrid` → Exp 6 (P16, optional).

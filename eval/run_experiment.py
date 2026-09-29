@@ -71,12 +71,14 @@ RAW_FIELDS = [
 
 
 class DailyLimitReached(RuntimeError):
-    """Groq tokens/requests-per-day limit: waiting minutes does not help, resume tomorrow."""
+    """Groq tokens/requests-per-day limit or OpenAI credit used up: waiting does not help, resume later."""
 
 
 def _is_daily_limit(message: str) -> bool:
     m = message.lower()
-    return "per day" in m or "(tpd)" in m or "(rpd)" in m
+    # OpenAI answers 429 "insufficient_quota" when the prepaid credit is used up
+    return ("per day" in m or "(tpd)" in m or "(rpd)" in m
+            or "insufficient_quota" in m or "exceeded your current quota" in m)
 
 
 def load_config(path: str) -> dict:

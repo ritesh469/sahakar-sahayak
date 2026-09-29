@@ -19,6 +19,9 @@ def test_daily_limit_messages():
     assert _is_daily_limit(tpd)
     assert _is_daily_limit("... on requests per day (RPD): Limit 1000, Used 1000")
     assert not _is_daily_limit(tpm)
+    # OpenAI: prepaid credit used up
+    assert _is_daily_limit("Error code: 429 - {'error': {'message': 'You exceeded your current quota, "
+                           "please check your plan and billing details.', 'code': 'insufficient_quota'}}")
 
 
 def test_daily_limit_is_not_retried():
