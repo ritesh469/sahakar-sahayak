@@ -154,11 +154,12 @@ class QueryCacheService:
             settings.cache_ttl_sql_result,
         )
 
-    def embedding_key(self, text: str) -> str:
-        return self._key("embedding", text)
+    def embedding_key(self, text: str, model: str = "") -> str:
+        # Model is part of the key so switching models never returns wrong-dim vectors
+        return self._key("embedding", f"{model}\x00{text}")
 
-    def get_embedding(self, text: str) -> list[float] | None:
-        value = self._get("embedding", self.embedding_key(text))
+    def get_embedding(self, text: str, model: str = "") -> list[float] | None:
+        value = self._get("embedding", self.embedding_key(text, model))
         if value is None:
             return None
         try:
@@ -169,10 +170,10 @@ class QueryCacheService:
             logger.exception("Invalid embedding cache payload")
         return None
 
-    def set_embedding(self, text: str, vector: list[float]) -> None:
+    def set_embedding(self, text: str, vector: list[float], model: str = "") -> None:
         self._set(
             "embedding",
-            self.embedding_key(text),
+            self.embedding_key(text, model),
             json.dumps(vector),
             settings.cache_ttl_embeddings,
         )

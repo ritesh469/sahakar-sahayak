@@ -116,7 +116,10 @@ def _generate(
             iterations += 1
 
     chunk_previews = [
-        RetrievedChunkPreview(text=c.text, source=c.source, score=c.score) for c in chunks
+        RetrievedChunkPreview(
+            text=c.text, source=c.source, score=c.score, page_number=c.page_number
+        )
+        for c in chunks
     ]
     return ChatResponse(
         answer=raw,
@@ -206,7 +209,9 @@ def _run_hybrid_inline(
         metadata=ResponseMetadata(
             route="hybrid",
             retrieved_chunks=[
-                RetrievedChunkPreview(text=c.text, source=c.source, score=c.score)
+                RetrievedChunkPreview(
+                    text=c.text, source=c.source, score=c.score, page_number=c.page_number
+                )
                 for c in chunks
             ],
         ),
@@ -274,7 +279,9 @@ def run_rag_with_trace(
         response = _run_sql_inline(question)
         # Expose SQL rows as RetrievedChunks so eval can score them
         chunks = [
-            RetrievedChunk(text=cp.text, source=cp.source, score=cp.score)
+            RetrievedChunk(
+                text=cp.text, source=cp.source, score=cp.score, page_number=cp.page_number
+            )
             for cp in response.metadata.retrieved_chunks
         ]
         return response, chunks

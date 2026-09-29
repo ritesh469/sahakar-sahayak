@@ -7,10 +7,22 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     llm_model_answer: str = "gpt-4o"
     llm_model_grader: str = "gpt-4o-mini"
-    embedding_model: str = "text-embedding-3-small"
+
+    # Embeddings: "local" = sentence-transformers on GPU/CPU, "openai" = OpenAI API
+    embedding_backend: str = "local"
+    embedding_model: str = "BAAI/bge-m3"
+    embedding_dim: int = 1024
+
+    # Chunking (tokens are counted with the embedding model's tokenizer)
+    chunk_size: int = 512
+    chunk_overlap: int = 0
+    # PDF text backend: "pypdfium2" or "docling_parse" (docling default; drops pages with
+    # std::bad_alloc on this Windows machine)
+    pdf_backend: str = "pypdfium2"
 
     qdrant_url: str = "http://localhost:6333"
-    qdrant_collection: str = "documents"
+    # Collection name = f"{prefix}_{chunk_size}", one collection per chunk size
+    qdrant_collection_prefix: str = "coop"
 
     database_url: str = "postgresql://postgres:postgres@localhost:5432/adv_rag"
 

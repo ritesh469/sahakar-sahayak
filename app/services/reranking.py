@@ -62,7 +62,7 @@ class Reranker:
         scores = cast("list[float]", model.predict(pairs))
 
         scored = [
-            RetrievedChunk(text=chunk.text, source=chunk.source, score=float(score))
+            chunk.model_copy(update={"score": float(score)})
             for chunk, score in zip(chunks, scores, strict=True)
         ]
         scored.sort(key=lambda x: x.score, reverse=True)
@@ -89,11 +89,5 @@ class Reranker:
         for item in result.results:
             idx = item.index
             chunk = chunks[idx]
-            reranked.append(
-                RetrievedChunk(
-                    text=chunk.text,
-                    source=chunk.source,
-                    score=float(item.relevance_score),
-                )
-            )
+            reranked.append(chunk.model_copy(update={"score": float(item.relevance_score)}))
         return reranked

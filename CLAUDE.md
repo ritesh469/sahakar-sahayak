@@ -28,8 +28,16 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 - Demo users: `scripts/seed_db.py` ki `DEMO_USERS` list (agent@demo.local, admin@demo.local).
 - **Scripts hamesha `uv run --env-file .env python ...` se chalao.** `scripts/seed_db.py` DATABASE_URL
   `os.getenv` se padhta hai (default 5432 = dusre project ka DB!). Setup problem S1 dekho.
-- LLM provider: **Groq** (chat). Groq embeddings nahi deta → embeddings local GPU model se
-  (P2 mein EMBEDDING_DIM ke saath add hoga). Tab tak `.env` mein `OPENAI_API_KEY` placeholder hai.
+- LLM provider: **Groq** (chat). Groq embeddings nahi deta → embeddings local GPU model:
+  **`BAAI/bge-m3`** (1024-dim, 8192 tokens, CUDA fp16), `.env`: `EMBEDDING_BACKEND=local`,
+  `EMBEDDING_MODEL`, `EMBEDDING_DIM=1024` (P2). `OPENAI_API_KEY` placeholder abhi bhi chahiye
+  (`llm_service` import par OpenAI client banata hai, S3) jab tak P5 mein Groq na aaye.
+- Chunking (P2): `CHUNK_SIZE` / `CHUNK_OVERLAP` tokens bge-m3 tokenizer se gine jaate hain.
+  `PDF_BACKEND=pypdfium2` (S8 dekho).
+- Qdrant collection = `{QDRANT_COLLECTION_PREFIX}_{chunk_size}` → `coop_256`, `coop_512`, `coop_1024`.
+- Ingestion (Postgres ko chhoote bina):
+  `uv run --env-file .env python scripts/seed_db.py --ingest-only --chunk-size 512 --noise-sample 0`
+  (`--recreate` = collection pehle drop karo). **`--ingest-only` ke bina migrations chalenge (S1).**
 - API server: `uv run uvicorn app.main:app --host 127.0.0.1 --port 8001`
 
 ## Known problems
@@ -44,12 +52,11 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
    (जैसे `ा`, `ि`, `्`) `\w` nahi hain, isliye Hindi/Marathi words tukdon mein toot jaate hain.
    Upar se `stop_words="english"` hai. **Verified (P1):** "प्रधानमंत्री फसल बीमा योजना" → TF-IDF tokens
    `['जन', 'नम', 'फसल', 'रध']` (बीमा poora gayab, sirf फसल sahi). (P8)
-3. **Config hardcoded.** Chunk size configurable nahi (HybridChunker default), `VECTOR_SIZE = 1536`
-   `vector_store.py` mein hardcoded (sirf OpenAI text-embedding-3-small ke liye sahi). (P2)
-4. **Docling device = MPS** (`document_processor.py`) — sirf Mac ke liye; Windows/CUDA par AUTO chahiye. (P2)
-5. **page_number gum ho jata hai.** `document_processor` page nikalta hai, par `seed_db._ingest_one` sirf
-   text+source se `RetrievedChunk` banata hai; Qdrant payload aur models mein page nahi. (P2)
-6. **Ek hi Qdrant collection** (`documents`) — alag chunk size ke experiments ek dusre ko overwrite/mix karenge. (P2)
+3. **(FIXED, P2)** ~~Config hardcoded.~~ Ab `CHUNK_SIZE`, `CHUNK_OVERLAP`, `EMBEDDING_DIM` `.env` se.
+4. **(FIXED, P2)** ~~Docling device = MPS.~~ Ab `AcceleratorDevice.AUTO` (Windows par CUDA).
+5. **(FIXED, P2)** ~~page_number gum ho jata hai.~~ Chunk → Qdrant payload → search/rerank/RRF/preview
+   tak page jaata hai. Kai pages par phaila paragraph `charspan` se sahi page deta hai.
+6. **(FIXED, P2)** ~~Ek hi Qdrant collection.~~ Ab har chunk size ki alag collection (`coop_512` etc.).
 7. **SQL/Text2SQL path hamesha on + double routing.** Graph `route_intent` mein LLM router chalata hai, phir
    `run_rag` dobara `classify_intent` chalata hai (har query par 2 extra LLM calls). Router prompt K8s ka hai. (P5)
 8. **System prompt K8s SRE ka hai aur JSON output maangta hai**, jabki code answer ko plain text maanta hai. (P5)
@@ -69,12 +76,21 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 - **S2. (FIXED, P1 follow-up)** Rate limiter aur token budget ko Upstash Redis zaroori tha → `/auth/login`
   500 deta tha. Ab Upstash na ho to in-memory fallback (`tests/test_redis_fallback.py`).
   Dhyan do: login limit 5/min per IP hai (`AUTH_LOGIN_RATE_LIMIT_PER_MIN`) — P14 mein ek hi token reuse karo.
-- **S3.** `llm_service.py` / `embedding_service.py` import par hi OpenAI client banate hain; khaali key par
-  app crash (isliye placeholder). Groq ke liye base_url support nahi.
+- **S3.** `llm_service.py` import par hi OpenAI client banata hai; khaali key par app crash (isliye
+  placeholder). Groq ke liye base_url support nahi. (`embedding_service.py` wala hissa P2 mein fix: lazy.)
 - **S4.** `middleware/auth.create_access_token`: `expires_delta_seconds` pass karne par `expire` undefined (bug).
 - **S5.** Reranker har query par `Reranker()` naya banata hai → CrossEncoder model har baar load hota hai.
 - **S6.** Windows console (cp1252) Hindi/Marathi print karne par `UnicodeEncodeError` deta hai →
   scripts `PYTHONIOENCODING=utf-8` ke saath chalao (ya script mein `sys.stdout.reconfigure(encoding="utf-8")`).
+- **S7. (P2 mein mila)** Windows Developer Mode off → HF cache symlink nahi bana sakta. `snapshot_download`
+  8 threads mein chalta hai aur symlink-check mein race hai → `OSError: [WinError 1314]`, snapshot adhoora.
+  Naya HF model pehli baar ek thread se download karo:
+  `uv run python -c "from huggingface_hub import snapshot_download as s; s('<repo>', revision='<rev>', max_workers=1)"`
+  (docling: `docling-project/docling-models` rev `v2.3.0`, `docling-project/docling-layout-heron` rev `main`).
+  Developer Mode on karne se ye (aur duplicate copies se disk waste) khatam ho jaayega.
+- **S8. (P2 mein mila, workaround)** Docling ka default PDF backend (docling-parse) kuch pages par
+  `std::bad_alloc` deta hai aur page chupchap chhod deta hai (K8s PV PDF: 16 mein se 12–14 pages).
+  `PDF_BACKEND=pypdfium2` se 16/16 pages. Ab `process_document` missing pages ka WARNING log karta hai.
 
 ---
 

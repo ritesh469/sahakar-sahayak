@@ -36,6 +36,7 @@ class RetrievedChunkPreview(BaseModel):
     text: str
     source: str
     score: float = 0.0
+    page_number: int | None = None
 
 class ResponseMetadata(BaseModel):
     route: str = "rag"
@@ -103,6 +104,7 @@ class RetrievedChunk(BaseModel):
     text: str
     source: str
     score: float = 0.0
+    page_number: int | None = None
 
 class CRAGEvaluation(BaseModel):
     relevance_score: float = 0.0

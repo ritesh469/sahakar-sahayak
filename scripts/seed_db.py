@@ -66,18 +66,31 @@ def _select_corpus(noise_sample_size: int | str) -> tuple[list[Path], list[Path]
     return true_files, noisy_files
 
 
-def seed_docs(noise_sample_size: int | str = 150) -> dict:
+def seed_docs(
+    noise_sample_size: int | str = 150,
+    chunk_size: int | None = None,
+    recreate: bool = False,
+) -> dict:
+    from functools import partial
+
     from app.models import RetrievedChunk
     from app.services.document_processor import DocumentProcessor
     from app.services.embedding_service import embed_texts
-    from app.services.vector_store import upsert_chunks
+    from app.services.vector_store import collection_name, recreate_collection, upsert_chunks
 
-    processor = DocumentProcessor()
+    processor = DocumentProcessor(chunk_size=chunk_size)
+    collection = collection_name(processor.chunk_size)
+    if recreate:
+        logger.info("--recreate set; dropping and recreating collection {}", collection)
+        recreate_collection(collection)
+    upsert_to_collection = partial(upsert_chunks, collection=collection)
     true_files, noisy_files = _select_corpus(noise_sample_size)
     total = len(true_files) + len(noisy_files)
 
     logger.info("=" * 60)
     logger.info("INGESTION PLAN")
+    logger.info("  collection : {} (chunk_size={}, overlap={})",
+                collection, processor.chunk_size, processor.chunk_overlap)
     logger.info("  true_data  : {} files (full signal)", len(true_files))
     logger.info("  noisy_data : {} files (sample={})", len(noisy_files), noise_sample_size)
     logger.info("  total      : {} files", total)
@@ -93,13 +106,13 @@ def seed_docs(noise_sample_size: int | str = 150) -> dict:
 
 
     for idx, src in enumerate(true_files, start=1):
-        _ingest_one(processor, src, idx, total, counters, embed_texts, upsert_chunks, RetrievedChunk)
+        _ingest_one(processor, src, idx, total, counters, embed_texts, upsert_to_collection, RetrievedChunk)
         if counters["chunks"] > 0 and idx == len(true_files):
             logger.info("✓ All {} true (signal) files done", len(true_files))
 
     for jdx, src in enumerate(noisy_files, start=1):
         idx = len(true_files) + jdx
-        _ingest_one(processor, src, idx, total, counters, embed_texts, upsert_chunks, RetrievedChunk)
+        _ingest_one(processor, src, idx, total, counters, embed_texts, upsert_to_collection, RetrievedChunk)
 
     elapsed = time.time() - t0
     logger.info("=" * 60)
@@ -123,7 +136,10 @@ def _ingest_one(processor, src: Path, idx: int, total: int, counters: dict,
             logger.warning("[{}/{}] {} {} → 0 chunks (skipped)", idx, total, label, src.name)
             counters["failed"] += 1
             return
-        chunks = [RetrievedChunk(text=c["text"], source=c["source"]) for c in chunks_meta]
+        chunks = [
+            RetrievedChunk(text=c["text"], source=c["source"], page_number=c.get("page_number"))
+            for c in chunks_meta
+        ]
         texts = [c.text for c in chunks]
         embeddings = embed_texts_fn(texts)
         upsert_chunks_fn(chunks, embeddings)
@@ -174,19 +190,36 @@ def main() -> None:
         help="Run migrations + users only; skip vector-store ingestion",
     )
     parser.add_argument(
+        "--ingest-only", action="store_true",
+        help="Skip Postgres (migrations + users); only ingest documents into Qdrant",
+    )
+    parser.add_argument(
         "--noise-sample", default="150",
         help="Number of noisy docs to sample (default 150). Use 0 or 'all'.",
     )
+    parser.add_argument(
+        "--chunk-size", type=int, default=None,
+        help="Chunk size in tokens (default CHUNK_SIZE from .env); collection = <prefix>_<size>",
+    )
+    parser.add_argument(
+        "--recreate", action="store_true",
+        help="Drop and recreate the target Qdrant collection before ingesting",
+    )
     args = parser.parse_args()
+    if args.no_ingest and args.ingest_only:
+        raise SystemExit("--no-ingest and --ingest-only cannot be used together")
 
-    logger.info("Connecting to database...")
-    conn = psycopg2.connect(DATABASE_URL)
-    logger.info("Running migrations...")
-    run_migrations(conn)
-    logger.info("Seeding demo users...")
-    seed_users(conn)
-    conn.close()
-    logger.info("DB seeding done.")
+    if args.ingest_only:
+        logger.info("--ingest-only set; skipping migrations + users.")
+    else:
+        logger.info("Connecting to database...")
+        conn = psycopg2.connect(DATABASE_URL)
+        logger.info("Running migrations...")
+        run_migrations(conn)
+        logger.info("Seeding demo users...")
+        seed_users(conn)
+        conn.close()
+        logger.info("DB seeding done.")
 
     if args.no_ingest:
         logger.info("--no-ingest set; skipping doc ingestion.")
@@ -200,7 +233,7 @@ def main() -> None:
         except ValueError:
             raise SystemExit(f"--noise-sample must be int or 'all', got {noise_arg!r}")
 
-    seed_docs(noise_sample_size=noise_arg)
+    seed_docs(noise_sample_size=noise_arg, chunk_size=args.chunk_size, recreate=args.recreate)
 
 if __name__ == "__main__":
     main()

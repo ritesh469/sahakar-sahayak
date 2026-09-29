@@ -92,6 +92,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["."]  # so tests can import scripts.* (app is installed, scripts is not)
 
 [tool.uv]
 # Windows: hardlinks from the uv cache fail with os error 396, so copy files instead

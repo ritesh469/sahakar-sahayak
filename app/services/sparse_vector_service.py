@@ -51,6 +51,7 @@ class SparseVectorIndex:
                     RetrievedChunk(
                         text=doc.get("text", ""),
                         source=doc.get("source", ""),
+                        page_number=doc.get("page_number"),
                         score=score,
                     )
                 )
@@ -62,17 +63,17 @@ def fuse_rrf(
 ) -> list[RetrievedChunk]:
     """Fuse multiple ranked result lists using Reciprocal Rank Fusion."""
     scores: dict[str, float] = {}
-    meta: dict[str, dict] = {}
+    meta: dict[str, RetrievedChunk] = {}
 
     for result_list in result_lists:
         for rank, chunk in enumerate(result_list):
             key = chunk.text
             scores[key] = scores.get(key, 0.0) + 1.0 / (rrf_k + rank + 1)
             if key not in meta:
-                meta[key] = {"text": chunk.text, "source": chunk.source}
+                meta[key] = chunk
 
     return [
-        RetrievedChunk(text=text, source=meta[text]["source"], score=score)
+        meta[text].model_copy(update={"score": score})
         for text, score in sorted(scores.items(), key=lambda x: x[1], reverse=True)
     ]
     
