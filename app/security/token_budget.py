@@ -1,6 +1,7 @@
 """Per-user daily token budget tracked in Redis."""
 
 import datetime
+import threading
 
 from upstash_redis import Redis
 
@@ -8,9 +9,16 @@ from app.config import settings
 
 _redis_client: Redis | None = None
 
+# In-memory fallback (single process) used when Upstash is not configured.
+# Keys already contain the UTC date, so counts reset daily without a TTL.
+_memory_used: dict[str, int] = {}
+_memory_lock = threading.Lock()
 
-def get_redis_client() -> Redis:
+
+def get_redis_client() -> Redis | None:
     global _redis_client
+    if not settings.upstash_redis_url or not settings.upstash_redis_token:
+        return None
     if _redis_client is None:
         _redis_client = Redis(
             url=settings.upstash_redis_url,
@@ -30,8 +38,12 @@ class TokenBudget:
     def check_budget(self, user_id: str, estimated_tokens: int) -> tuple[bool, int]:
         client = get_redis_client()
         key = self._key(user_id)
-        used_str = client.get(key)
-        used = int(used_str) if used_str is not None else 0
+        if client is None:
+            with _memory_lock:
+                used = _memory_used.get(key, 0)
+        else:
+            used_str = client.get(key)
+            used = int(used_str) if used_str is not None else 0
         remaining = self.max_tokens - used
         ok = estimated_tokens <= remaining
         return ok, remaining
@@ -39,6 +51,17 @@ class TokenBudget:
     def consume(self, user_id: str, actual_tokens: int) -> dict:
         client = get_redis_client()
         key = self._key(user_id)
+        if client is None:
+            with _memory_lock:
+                used = _memory_used.get(key, 0) + actual_tokens
+                _memory_used[key] = used
+            return {
+                "used": used,
+                "limit": self.max_tokens,
+                "remaining": max(0, self.max_tokens - used),
+                "tokens_charged": actual_tokens,
+            }
+
         used = client.incrby(key, actual_tokens)
 
         # Set TTL to seconds-until-midnight on first write

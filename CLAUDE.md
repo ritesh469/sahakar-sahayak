@@ -66,9 +66,9 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 
 - **S1.** `scripts/seed_db.py` `.env` nahi padhta (`os.getenv("DATABASE_URL")`, default 5432), aur
   `run_migrations` SAARI .sql files chalata hai (003 mein `DROP TABLE ... CASCADE`). Galat DB par chala to data udega.
-- **S2.** Rate limiter (`middleware/rate_limiter.py`) aur token budget (`security/token_budget.py`) ko Upstash Redis
-  zaroori hai; `.env` mein Upstash nahi ho to `/auth/login` aur `/query` 500 dete hain. (query cache mein
-  in-memory fallback hai, in dono mein nahi.)
+- **S2. (FIXED, P1 follow-up)** Rate limiter aur token budget ko Upstash Redis zaroori tha → `/auth/login`
+  500 deta tha. Ab Upstash na ho to in-memory fallback (`tests/test_redis_fallback.py`).
+  Dhyan do: login limit 5/min per IP hai (`AUTH_LOGIN_RATE_LIMIT_PER_MIN`) — P14 mein ek hi token reuse karo.
 - **S3.** `llm_service.py` / `embedding_service.py` import par hi OpenAI client banate hain; khaali key par
   app crash (isliye placeholder). Groq ke liye base_url support nahi.
 - **S4.** `middleware/auth.create_access_token`: `expires_delta_seconds` pass karne par `expire` undefined (bug).

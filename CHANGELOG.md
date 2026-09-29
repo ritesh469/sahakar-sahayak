@@ -62,5 +62,19 @@ curl http://127.0.0.1:8001/admin/health
 
 ### Abhi khula (next steps)
 
-- `/auth/login` 500 deta hai: rate limiter ko Upstash Redis chahiye (CLAUDE.md Setup problem S2).
 - Groq chat + local embeddings: P2 (EMBEDDING_DIM) / P5 (model names).
+
+---
+
+## P1 follow-up — Redis ke bina login (2026-09-29)
+
+**Kya hua:** `/auth/login` 500 deta tha, kyunki rate limiter aur token budget ko Upstash Redis (cloud)
+chahiye tha. Ab Upstash configure na ho to dono memory mein count karte hain (query cache jaisa).
+Upstash `.env` mein daaloge to purana Redis wala raasta hi chalega.
+
+- `app/middleware/rate_limiter.py`: sliding-window in-memory fallback (same semantics as Redis ZSET).
+- `app/security/token_budget.py`: per-user per-day in-memory counter fallback.
+- `tests/test_redis_fallback.py`: 4 tests (limit, alag keys, window expiry, budget) — **4 passed**.
+- Live check (port 8001): agent login → token; galat password → 401; admin `/admin/cache/stats` → 200;
+  1 minute mein 6th login → 429 `Rate limit exceeded`.
+- Limitation: memory counter sirf ek process ke andar hai (uvicorn multiple workers mein share nahi hoga).
