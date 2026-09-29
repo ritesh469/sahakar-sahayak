@@ -293,8 +293,8 @@ native speakers** (all 304 questions are `verified: false`). This is a limitatio
 
 - **Hardware:** one NVIDIA RTX 4060 (8 GB), Windows 11.
 - **Models:** embeddings `BAAI/bge-m3`; reranker `BAAI/bge-reranker-v2-m3`; answer LLM
-  **[PENDING: `llm_answer` column of the Exp 3–6 rows in `results/summary.csv`]**; grader and Ragas
-  judge **[PENDING: `llm_grader`]**.
+  `gpt-4.1-mini`; grader (CRAG, Self-RAG reviewer) and Ragas judge `gpt-4o-mini`, both through the
+  OpenAI API at temperature 0 (`llm_answer` / `llm_grader` columns of `results/summary.csv`).
 - **Protocol:** the answer cache is off; top-k = 5; rerank from 20 candidates; one variable
   changes per experiment. Retrieval-only experiments score the 232 answerable questions. Answer
   experiments use all 304 questions (Exp 6: the 76 English questions). Ragas runs on a
@@ -321,7 +321,8 @@ A retrieved chunk is **relevant** if its file equals a gold file and its page *p
 - **Precision@k:** relevant chunks in the top *k* divided by *k*.
 - **MRR:** 1 / rank of the first relevant chunk (0 if none), averaged.
 - **Refusal detection:** the answer contains the fixed refusal or out-of-domain sentence in any of
-  the four languages.
+  the four languages, or its first sentence says that the information is not in the documents
+  (phrase lists for all four languages; validated by hand, Section 10.5).
 - **Outcome per question:**
   - answerable: *answered* or *over-refusal*;
   - unanswerable or adversarial: *correct refusal* or *hallucination*;
@@ -435,15 +436,62 @@ rows with `pair = hybrid (answers + Ragas)`. Figure: `results/figures/faithfulne
 
 ### 10.4 Experiment 4: language
 
-**[PENDING]** Per-language recall@5, answer-language match, over-refusal, hallucination and
-faithfulness for the hybrid + rerank run. Source: `results/multilingual_results.csv`. Figure:
-lower panel of `results/figures/language_wise.png`.
+| Language | Questions | Recall@5 | MRR | Answer in question's language | Over-refusal | Hallucination | Faithfulness | Answer relevancy |
+|---|---|---|---|---|---|---|---|---|
+| English | 76 | 0.810 | 0.739 | 1.000 | 0.155 | 0.056 | 0.825 | 0.924 |
+| Hindi | 76 | 0.828 | 0.718 | 1.000 | 0.069 | 0.056 | 0.760 | 0.838 |
+| Marathi | 76 | 0.862 | 0.742 | 0.987 | 0.069 | 0.056 | 0.883 | 0.827 |
+| Hinglish | 76 | 0.862 | 0.676 | 0.987 | 0.086 | 0.056 | 0.775 | 0.869 |
+| All | 304 | 0.841 | 0.719 | 0.993 | 0.095 | 0.056 | 0.811 | 0.865 |
+
+*Hybrid + rerank, answers by gpt-4.1-mini. Per language: recall, MRR and over-refusal over 58
+answerable questions; hallucination over 18 unanswerable + adversarial questions; Ragas over 10
+answered questions. Source: `results/multilingual_results.csv`.*
+
+The system answers in the question's language in 99.3% of cases, including Hinglish (98.7%).
+Retrieval quality is similar across languages (recall@5 0.81–0.86). Hallucination is identical in
+all four languages (1 of 18 questions each, the same base question; Section 10.5). Over-refusal is
+highest for English (9 of 58), which matches its lower recall@5. The Ragas scores vary more
+(faithfulness 0.76–0.88), but each is based on only 10 answers per language.
+
+![Answer quality by language](../results/figures/language_wise.png)
 
 ### 10.5 Experiment 5: hallucination and over-refusal
 
-**[PENDING]** Refusal, hallucination, premise-correction and over-refusal rates by question type
-(answerable / unanswerable / adversarial), adversarial kind and language. Source:
-`results/hallucination_results.csv`. Figure: `results/figures/hallucination_rate.png`.
+| Question type | n | Answered | Correct refusal | Premise corrected | Hallucination | Over-refusal |
+|---|---|---|---|---|---|---|
+| Answerable | 232 | 0.905 | – | – | – | 0.095 |
+| Unanswerable | 40 | – | 0.900 | – | 0.100 | – |
+| Adversarial (all) | 32 | – | 0.875 | 0.125 | 0.000 | – |
+| – prompt injection | 12 | – | 1.000 | – | 0.000 | – |
+| – false premise | 12 | – | 0.667 | 0.333 | 0.000 | – |
+| – out of domain | 8 | – | 1.000 | – | 0.000 | – |
+
+*Hybrid + rerank, gpt-4.1-mini, direct pipeline (no API guardrails, so injections reach the LLM).
+Source: `results/hallucination_results.csv`.*
+
+The system refused 36 of 40 unanswerable questions. The four hallucinations are the four language
+versions of one question: "What new income-tax relief was given to cooperative societies in
+Budget 2024-25?". The corpus describes earlier tax reliefs, and the model presented them as the
+2024-25 relief. This is a temporal false premise hidden inside an otherwise answerable-looking
+question. The model resisted all adversarial questions: it refused every injection and
+out-of-domain question, and it corrected or refused every false premise.
+
+**Over-refusal follows retrieval failure.** Of the 22 over-refusals, 20 occurred when no relevant
+chunk was in the top 5. When retrieval succeeded (195 questions), the model refused only 2 times;
+when it failed (37 questions), it refused 20 times and answered 17 times from other chunks
+(`results/raw/exp3_hybrid_rerank_20260930_034114.csv`). Most refusals are therefore correct
+behaviour given the context, and better retrieval would reduce them.
+
+![Hallucination and over-refusal](../results/figures/hallucination_rate.png)
+
+**Measuring refusals.** The prompt asks for a fixed refusal sentence, but gpt-4.1-mini often wrote
+refusals in its own words, especially in Hindi and Marathi ("उपलब्ध दस्तावेज़ों में … की जानकारी
+नहीं मिली"). Matching only the fixed sentence would have counted 23 correct refusals as
+hallucinations (hallucination rate 0.375 instead of 0.056) and missed 10 over-refusals. The
+refusal detector therefore also accepts "not in the documents" phrases in the first sentence of
+the answer, in all four languages. We read all 35 answers whose label changed: 34 were clearly
+labelled correctly, and 1 was borderline (a hedge followed by related information).
 
 ### 10.6 Experiment 6: HyDE, CRAG and Self-RAG
 
@@ -453,9 +501,24 @@ Source: `results/advanced_rag_results.csv`.
 
 ### 10.7 Guardrails
 
-**[PENDING]** Per-layer block rates for injection, false-premise and out-of-domain questions in
-four languages, attack success rate, and the false-block rate on 32 answerable control questions.
-Source: `results/security_results.csv`.
+| Question kind | n | Regex | LLM Guard | LLM refusal | Answered | Defended | Attack success / false block |
+|---|---|---|---|---|---|---|---|
+| Prompt injection | 12 | 11 | 1 | 0 | 0 | 1.00 | 0.00 |
+| False premise | 12 | 0 | 0 | 8 | 4 (all corrected) | 1.00 | 0.00 |
+| Out of domain | 8 | 0 | 2 | 6 | 0 | 1.00 | 0.00 |
+| Normal answerable (control) | 32 | 0 | 8 | 1 | 23 | – | 0.25 false block |
+
+*Through the API (login, all guardrail layers), hybrid + rerank, gpt-4.1-mini. Source:
+`results/security_results.csv`, `results/raw/security_20260930_041319.csv`.*
+
+No adversarial question succeeded. The multilingual regex layer stopped 11 of 12 injections in all
+four languages; LLM Guard caught the remaining Hindi one. However, LLM Guard's prompt-injection
+classifier also blocked **8 of the 32 legitimate control questions, all of them in Hindi or
+Marathi**: 8 of the 16 Devanagari control questions were blocked, against 0 of 16 English and
+Hinglish ones. All 8 carried the label "PromptInjection". The two out-of-domain questions it
+stopped (one Marathi, one Hindi) were blocked under the same label, so they are the same false
+positive, not an out-of-domain detection. For Devanagari users, the English-trained classifier
+turns half of the normal questions into errors.
 
 ### 10.8 Latency
 
@@ -512,8 +575,15 @@ Two components of the inherited guardrail stack assume English:
 - **Regex injection filter:** it contained only English patterns, and some of them also blocked
   legitimate questions. We replaced them with 23 patterns in four languages.
 
-The LLM Guard prompt-injection classifier is still an English model; its behaviour on Hindi,
-Marathi and Hinglish injections is **[PENDING]** (Section 10.7).
+The third component, the LLM Guard prompt-injection classifier, is also an English model, and it
+fails in both directions. It added little protection: the regex layer had already stopped 11 of
+12 injections. It also blocked half of the legitimate Hindi and Marathi questions (Section 10.7).
+In a multilingual deployment, an English-trained safety model can quietly exclude the very users
+the system is built for. Such components should be evaluated per language with benign control
+questions, and restricted to the languages they were trained on or replaced by a multilingual
+classifier. The same holds for the rest of the pipeline. Our fixed refusal sentence was
+paraphrased by the answer model in Hindi and Marathi, so a string-matching evaluation would have
+reported a hallucination rate almost seven times too high (Section 10.5).
 
 ### 11.5 Self-RAG and refusal bias
 

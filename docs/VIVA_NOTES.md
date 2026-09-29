@@ -132,8 +132,13 @@ hallucinate karta hai.
 
 8. **Hallucination kaise naapa?**
    10 unanswerable (jawab documents mein nahi) + 8 adversarial (injection, fake premise, out of
-   domain) × 4 bhasha. Jawab mein fixed refusal sentence aaya to sahi; jawab diya to hallucination.
-   Answerable par refusal = over-refusal. Numbers: (LLM runs ke baad, `results/hallucination_results.csv`).
+   domain) × 4 bhasha. Bot ne mana kiya to sahi; jawab diya to hallucination. Answerable par
+   refusal = over-refusal. Result (`results/hallucination_results.csv`): unanswerable par 90% sahi
+   refusal; hallucination sirf 4/72 (5.6%): ek hi sawaal (Budget 2024-25 ki tax chhoot) chaaron
+   bhashaon mein. Over-refusal 9.5%, aur 22 mein se 20 tab hue jab retrieval sahi chunk laaya hi nahi.
+   **Dhyan:** gpt-4.1-mini Hindi/Marathi mein refusal apne shabdon mein likhta hai, isliye detector
+   pehle sentence mein "documents mein nahi" wale phrases bhi pehchanta hai. Sirf fixed sentence
+   dhoondhne par hallucination 37.5% dikhta (galat); 35 badle labels haath se check kiye.
 
 9. **Self-RAG ka refusal bias kya hai?**
    Original Self-RAG reviewer prompt har "information nahi mili" ko fail maan ke dobara likhwata tha, isse
@@ -142,9 +147,11 @@ hallucinate karta hai.
 
 10. **Prompt injection se kaise bachaav?**
     Layer 1: 23 regex patterns 4 bhashaon mein (poora hukum wala dhaancha pakadte hain, akela "ignore"
-    shabd nahi). Layer 2: llm-guard PromptInjection model. Layer 3: spotlighting + system prompt. Dry run
-    mein 12 injection sawaal: 11 regex ne, 1 llm-guard ne roke. Poora result: (LLM runs ke baad,
-    `results/security_results.csv`).
+    shabd nahi). Layer 2: llm-guard PromptInjection model. Layer 3: spotlighting + system prompt.
+    API test (`results/security_results.csv`): 32 mein se 0 hamle kaamyaab; injection 11 regex ne,
+    1 llm-guard ne roke. **Par** llm-guard (English model) ne 32 normal sawaalon mein se 8 rok diye,
+    saare Hindi/Marathi (Devanagari ke 16 mein se 8). Yaani English guardrail Hindi/Marathi users ko
+    nuksaan karta hai; paper ki badi finding.
 
 11. **Page number kaise aata hai?**
     docling har text item ka page deta hai; chunk ka page = jis page par chunk shuru hota hai (kai pages
