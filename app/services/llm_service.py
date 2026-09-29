@@ -24,10 +24,19 @@ def get_client() -> OpenAI:
     return _client
 
 
+# OpenAI reasoning models only accept the default temperature and take reasoning_effort instead
+_OPENAI_REASONING_PREFIXES = ("gpt-5", "o1", "o3", "o4")
+
+
+def is_openai_reasoning_model(model: str) -> bool:
+    return model.startswith(_OPENAI_REASONING_PREFIXES)
+
+
 def _extra_body(model: str) -> dict | None:
-    # gpt-oss models think before answering; "low" keeps hidden reasoning tokens (which count
-    # against the tokens-per-minute limit) small
-    if model.startswith("openai/gpt-oss") and settings.llm_reasoning_effort:
+    # gpt-oss / OpenAI reasoning models think before answering; "low" keeps hidden reasoning
+    # tokens (billed, and counted against rate limits) small
+    reasoning = model.startswith("openai/gpt-oss") or is_openai_reasoning_model(model)
+    if reasoning and settings.llm_reasoning_effort:
         return {"reasoning_effort": settings.llm_reasoning_effort}
     return None
 
@@ -38,6 +47,8 @@ STATS: dict = {"tokens": {}, "errors": 0, "last_error": ""}
 
 
 def _create(model: str, **kwargs):
+    if is_openai_reasoning_model(model):
+        kwargs.pop("temperature", None)
     try:
         response = get_client().chat.completions.create(model=model, **kwargs)
     except Exception as exc:

@@ -1,0 +1,12 @@
+# Exp 6 / P16: Self-RAG with the ORIGINAL reviewer prompt (a refusal counts as a failure and is
+# regenerated) - compare with exp6_selfrag (refusal-aware prompt). English questions only.
+name: exp6_selfrag_original
+chunk_size: 512
+search_mode: hybrid
+rerank: true
+top_k: 5
+self_rag: true
+self_rag_prompt: original
+generate: true
+ragas: false
+languages: [en]

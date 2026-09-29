@@ -770,3 +770,30 @@ Ek RAG jawab ~2,200 tokens (2 sawaalon par naapa) → **~80–90 jawab/din**. Is
     chaaron bhasha); unanswerable/adversarial poore.
 - `tests/test_run_experiment.py` (5 tests): TPD/TPM message pehchaan, daily limit retry nahi,
   sample selection.
+
+---
+
+## P16 code + OpenAI support (2026-09-30) — runs baaki (LLM key ka intezaar)
+
+**Kya hua (simple Hinglish mein):** Self-RAG ka reviewer prompt har "documents mein nahi hai" wale
+jawab ko fail maanta tha aur LLM se dobara likhwata tha, isse unanswerable sawaalon par LLM jawab
+"bana" deta (Known problem #11). Ab naya prompt (`refusal_aware`, default) kehta hai ki sahi refusal
+achha jawab hai, aur jhootha fact banana refusal se bura hai. Purana prompt `original` naam se rakha,
+taaki paper mein dono ki tulna ho sake. Saath mein OpenAI models ka support jodaa (Groq ki daily limit
+ki wajah se generation experiments hafton lete).
+
+- `app/services/self_reflective.py`: `_REFLECTION_PROMPT_ORIGINAL` + `_REFLECTION_PROMPT_REFUSAL_AWARE`,
+  `SELF_RAG_PROMPT=refusal_aware|original` (`app/config.py`, `.env.example`).
+- `eval/run_experiment.py`: config key `self_rag_prompt`; summary mein `self_rag_prompt`,
+  `answerable_sample` columns.
+- `configs/exp6_selfrag.yaml` (refusal_aware), `configs/exp6_selfrag_original.yaml` (naya, original).
+- `app/services/llm_service.py`: OpenAI reasoning models (`gpt-5*`, `o1/o3/o4`) ko `temperature` nahi
+  bhejte (wo reject karte hain), `reasoning_effort` bhejte hain.
+- `eval/ragas_adapter.py`: note — Ragas judge non-reasoning model ho (jaise `gpt-4.1-mini`), kyunki
+  Ragas har call par temperature set karta hai.
+- `tests/test_self_reflective.py` (3 tests).
+
+### Verify kiya
+
+- `pytest tests` → 118 passed.
+- Exp 6 runs (`exp6_hyde/crag/selfrag/selfrag_original`) abhi nahi chale — LLM key ke baad (P13/P16).

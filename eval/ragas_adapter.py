@@ -47,6 +47,8 @@ def _get_ragas_llm():
         chat = ChatOpenAI(model=settings.llm_model_grader, api_key=settings.groq_api_key,
                           base_url=GROQ_BASE_URL, temperature=0, max_retries=settings.llm_max_retries)
     else:
+        # Use a non-reasoning judge (e.g. gpt-4.1*): Ragas sets the temperature on every call,
+        # which OpenAI reasoning models reject
         chat = ChatOpenAI(model=settings.llm_model_grader, api_key=settings.openai_api_key,
                           temperature=0, max_retries=settings.llm_max_retries)
     return LangchainLLMWrapper(chat)

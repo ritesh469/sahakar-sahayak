@@ -6,6 +6,7 @@ search_mode: hybrid
 rerank: true
 top_k: 5
 self_rag: true
+self_rag_prompt: refusal_aware
 generate: true
 ragas: false
 languages: [en]

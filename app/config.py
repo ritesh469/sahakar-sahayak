@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -101,6 +103,8 @@ class Settings(BaseSettings):
     reflection_min_score: float = 0.85
     max_reflection_retries: int = 2
     self_reflective_enabled_by_default: bool = False
+    # Self-RAG reviewer prompt: refusal_aware (P16 fix, default) | original (refusal = failure)
+    self_rag_prompt: Literal["refusal_aware", "original"] = "refusal_aware"
 
 
     vanna_model: str = "gpt-4o"

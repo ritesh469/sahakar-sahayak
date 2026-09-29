@@ -13,6 +13,7 @@ Config YAML (configs/*.yaml):
     hyde: false
     crag: false
     self_rag: false
+    self_rag_prompt: refusal_aware   # or: original (P16 comparison)
     generate: true           # false = retrieval metrics only, no LLM call (answerable only)
     ragas: false             # Ragas on a language-balanced subset of answerable questions
     ragas_limit: 40
@@ -81,7 +82,8 @@ def _is_daily_limit(message: str) -> bool:
 def load_config(path: str) -> dict:
     cfg = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     defaults = {"chunk_size": 512, "search_mode": "hybrid", "top_k": 5, "rerank": False,
-                "hyde": False, "crag": False, "self_rag": False, "generate": True,
+                "hyde": False, "crag": False, "self_rag": False, "self_rag_prompt": "refusal_aware",
+                "generate": True,
                 "ragas": False, "ragas_limit": 40}
     cfg = {**defaults, **cfg}
     cfg.setdefault("name", Path(path).stem)
@@ -223,6 +225,8 @@ def summarize(rows: list[dict], cfg: dict, raw_path: Path, started: str) -> dict
         "questions": len(rows), "answerable": len(ans), "unanswerable_or_adversarial": len(unans),
         "chunk_size": cfg["chunk_size"], "search_mode": cfg["search_mode"], "top_k": cfg["top_k"],
         "rerank": cfg["rerank"], "hyde": cfg["hyde"], "crag": cfg["crag"], "self_rag": cfg["self_rag"],
+        "self_rag_prompt": cfg["self_rag_prompt"] if cfg["self_rag"] else "",
+        "answerable_sample": cfg.get("answerable_sample") or "",
         "generate": cfg["generate"],
         "languages": ",".join(cfg.get("languages") or []) or "all",
         "llm_answer": settings.llm_model_answer if cfg["generate"] else "",
@@ -293,6 +297,7 @@ def main() -> int:
 
     # One Qdrant collection per chunk size (coop_<size>); the query cache is not used here
     settings.chunk_size = int(cfg["chunk_size"])
+    settings.self_rag_prompt = cfg["self_rag_prompt"]
     goldens = load_coop_goldens(args.questions)
     if cfg.get("question_types"):
         goldens = [g for g in goldens if g.type in cfg["question_types"]]
