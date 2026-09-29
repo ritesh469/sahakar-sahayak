@@ -666,3 +666,42 @@ Summary print mein `mrr` chhup raha tha ("mr" language prefix filter) → theek.
 
 - Generation latency mein Groq free tier ke 429 retry-wait bhi jud jaate hain (upar 35.7 s) → paper mein
   latency ko "free-tier API" ke saath report karna.
+
+---
+
+## P12 — Experiment configs + 256/1024 indexes (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** `configs/` mein 12 experiment settings bani (har file mein sirf ek
+cheez badalti hai), aur chunk size 256 aur 1024 ke alag Qdrant collections ban gaye. Ab teeno size
+(`coop_256`, `coop_512`, `coop_1024`) ready hain, taaki Exp 1 (chunk size) chal sake.
+
+### Configs
+
+| Experiment | Configs | Kya badalta hai | LLM jawab? |
+|---|---|---|---|
+| Exp 1 (chunk size) | `exp1_chunk_256/512/1024` | chunk size (hybrid + rerank) | nahi (sirf retrieval metrics) |
+| Exp 2 (retrieval) | `exp2_bm25/tfidf/dense/hybrid` | search mode (512, no rerank) | nahi |
+| Exp 3 (rerank) | `exp3_hybrid`, `exp3_hybrid_rerank` | rerank on/off (512, hybrid) | haan + Ragas (40 sawaal) |
+| Exp 6 (advanced) | `exp6_hyde/crag/selfrag` | ek feature (512, hybrid + rerank) | haan, sirf English |
+
+Exp 1/2 mein LLM nahi chalta (recall/MRR ke liye jawab ki zaroorat nahi) — Groq free tier
+(1,000 requests/din per model) generation wale runs (Exp 3, 6) ke liye bachaya.
+`exp3_hybrid_rerank` hi "best config" hai jiske results Exp 4 (language-wise) aur Exp 5 (hallucination)
+mein split honge.
+
+### Ingestion (noise sample 0, overlap 0, `PDF_BACKEND=pypdfium2`)
+
+| chunk size | collection | documents (fail) | chunks | avg tokens/chunk | avg chars/chunk | time |
+|---|---|---|---|---|---|---|
+| 256 | `coop_256` | 23 (0) | 3,557 | 184.8 | 484.6 | 4.5 min |
+| 512 | `coop_512` | 23 (0) | 1,969 | 333.8 | 875.7 | 1.3 min |
+| 1024 | `coop_1024` | 23 (0) | 1,296 | 507.1 | 1,330.4 | 1.9 min |
+
+Har chunk par page number hai (673 pages, 0 missing). Reports: `results/ingestion_{256,512,1024}.json`.
+Chunker headings/paragraph par todta hai, isliye average chunk max size se kaafi chhota hai.
+
+### Scripts
+
+- `scripts/run_all_experiments.ps1` (Windows) aur `.sh` (Mac/Linux): Exp 1–3 ke 9 configs ek ke baad ek,
+  har config ka log `results/logs/`; ek config fail ho to baaki chalte rahte hain, aakhir mein fail list.
+- `.claude/launch.json`: API (8001) aur Streamlit (8502) preview ke liye.

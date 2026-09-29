@@ -1,0 +1,7 @@
+# Exp 2 (retrieval method): 512 tokens, no rerank, retrieval metrics only
+name: exp2_hybrid
+chunk_size: 512
+search_mode: hybrid
+rerank: false
+top_k: 5
+generate: false

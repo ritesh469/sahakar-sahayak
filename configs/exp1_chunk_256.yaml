@@ -1,0 +1,7 @@
+# Exp 1 (chunk size): hybrid + rerank, retrieval metrics only (generation budget: Groq free tier)
+name: exp1_chunk_256
+chunk_size: 256
+search_mode: hybrid
+rerank: true
+top_k: 5
+generate: false

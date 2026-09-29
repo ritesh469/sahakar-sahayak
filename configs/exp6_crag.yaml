@@ -1,0 +1,11 @@
+# Exp 6 (advanced RAG): 512, hybrid + rerank + crag. English questions only (Groq budget:
+# HyDE/CRAG/Self-RAG add several LLM calls per question)
+name: exp6_crag
+chunk_size: 512
+search_mode: hybrid
+rerank: true
+top_k: 5
+crag: true
+generate: true
+ragas: false
+languages: [en]

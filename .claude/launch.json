@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--env-file", ".env", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8001"],
+      "port": 8001
+    },
+    {
+      "name": "streamlit",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--env-file", ".env", "streamlit", "run", "scripts/streamlit_app.py", "--server.port", "8502", "--server.headless", "true", "--browser.gatherUsageStats", "false"],
+      "port": 8502
+    }
+  ]
+}

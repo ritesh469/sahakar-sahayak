@@ -1,0 +1,7 @@
+# Exp 1 (chunk size): hybrid + rerank, retrieval metrics only
+name: exp1_chunk_512
+chunk_size: 512
+search_mode: hybrid
+rerank: true
+top_k: 5
+generate: false

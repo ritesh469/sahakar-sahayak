@@ -1,0 +1,10 @@
+# Exp 3 (reranking): 512, hybrid, WITH rerank; answers + Ragas.
+# Also the 'best config' used for Exp 4 (language-wise) and Exp 5 (hallucination).
+name: exp3_hybrid_rerank
+chunk_size: 512
+search_mode: hybrid
+rerank: true
+top_k: 5
+generate: true
+ragas: true
+ragas_limit: 40

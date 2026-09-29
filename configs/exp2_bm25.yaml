@@ -1,0 +1,7 @@
+# Exp 2 (retrieval method): 512 tokens, no rerank, retrieval metrics only
+name: exp2_bm25
+chunk_size: 512
+search_mode: bm25
+rerank: false
+top_k: 5
+generate: false
