@@ -38,6 +38,11 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 - Ingestion (Postgres ko chhoote bina):
   `uv run --env-file .env python scripts/seed_db.py --ingest-only --chunk-size 512 --noise-sample 0`
   (`--recreate` = collection pehle drop karo). **`--ingest-only` ke bina migrations chalenge (S1).**
+- Documents (P3): K8s docs `seed/docs/_k8s_backup/` mein (ingest nahi hote). Naye docs `seed/docs/true_data/`.
+  Check + `data/sources.csv` sync: `uv run --env-file .env python scripts/check_docs.py --write-sources`
+  (`--pdf-backend docling_parse` se dono backends compare).
+- OCR: docling ka RapidOCR Chinese/English models use karta hai → **scanned Hindi/Marathi PDF ka text nahi
+  niklega** (`check_docs` SUSPICIOUS dikhayega). Aisi file hatao ya Unicode text wala version dhoondo.
 - API server: `uv run uvicorn app.main:app --host 127.0.0.1 --port 8001`
 
 ## Known problems

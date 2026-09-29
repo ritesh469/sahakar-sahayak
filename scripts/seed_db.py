@@ -44,7 +44,7 @@ def _select_corpus(noise_sample_size: int | str) -> tuple[list[Path], list[Path]
         p for p in Path(DOCS_DIR).iterdir()
         if p.is_file()
         and p.suffix.lower() in SUPPORTED_EXTENSIONS
-        and p.name != ".gitkeep"
+        and p.name not in {".gitkeep", "README.md"}  # README documents the folder, not the corpus
     ]
 
     if legacy_files:

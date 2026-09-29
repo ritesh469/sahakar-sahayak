@@ -151,3 +151,50 @@ ek dusre ko overwrite na karein. Known problems #3, #4, #5, #6 fix.
 - Asli Hindi/Marathi PDFs par `pypdfium2` vs `docling_parse` text quality P3 (`check_docs.py`) mein dekhna.
 - `_ingest_one` fail hone par sirf exception type log karta hai → P4 report ke liye message bhi chahiye.
 - Sparse index cache aur `scroll(limit=10000)` → P8.
+
+---
+
+## P3 — Documents check (2026-09-29)
+
+**Kya hua (simple Hinglish mein):** Purane Kubernetes documents `seed/docs/_k8s_backup/` mein move kiye
+(delete nahi, `git mv`). Naye documents check karne ke liye `scripts/check_docs.py` bana, aur
+`data/sources.csv` ka template bana. **Abhi `true_data/` khaali hai** (naye documents daalne baaki hain),
+isliye `sources.csv` mein sirf header hai.
+
+### Files
+
+- `seed/docs/true_data/*` → `seed/docs/_k8s_backup/` (47 files: 12 pdf, 12 docx, 12 html, 11 txt; sab K8s).
+- `scripts/check_docs.py` (naya): har document ke liye
+  - naam, pages (PDF; baaki formats `-`), characters;
+  - language guess: Devanagari % (≥60% → hi/mr, ≤10% → en, beech mein mixed);
+    hi vs mr aam shabdon se (है/और/में vs आहे/आणि/नाही, aur ळ);
+  - pehle 400 characters, **usi docling converter se jo ingestion use karta hai**;
+  - `SUSPICIOUS` agar: text < 200 chars, PDF mein < 100 chars/page (scan?), letters < 50%,
+    ajeeb symbols > 2% (U+FFFD, private-use, control, `(cid:`), legacy Hindi font (Kruti Dev jaisa:
+    `ds`, `esa`, `gS` jaise tokens ≥ 3%), ya conversion mein pages gaayab/fail.
+  - `--write-sources`: `data/sources.csv` mein naye filenames jodta hai; aapki bhari rows nahi badalta.
+  - `--pdf-backend docling_parse`: extraction compare karne ke liye; `--dir`, `--limit`.
+- `data/sources.csv` (naya): `filename,title,source_url,download_date,language,category`
+  (UTF-8 BOM, taaki Excel mein Hindi/Marathi sahi dikhe).
+- `scripts/seed_db.py`: `seed/docs/README.md` ab corpus mein ingest nahi hota (pehle top-level `.md`
+  "legacy doc" maan ke ingest ho jaata tha).
+- `tests/test_check_docs.py` (naya): 10 tests.
+
+### Verify kiya
+
+- `pytest tests/` → **21 passed** (10 naye).
+  - Hand-made samples: Hindi → `hi`, Marathi → `mr`, English → `en`, Hindi+English → `mixed`;
+    Kruti Dev text, khaali scan, kam text per page, ajeeb symbols, sirf symbols → SUSPICIOUS;
+    `sources.csv` sync bhari rows ko nahi chhoota.
+- `check_docs.py --dir seed/docs/_k8s_backup` (47 asli files) → sab `en`, **SUSPICIOUS 0**
+  (saaf English docs par koi false alarm nahi).
+- Docling `.txt` ko Markdown ki tarah padhta hai (ingestion mein chalega).
+
+### Abhi khula (next steps)
+
+- **Naye documents `seed/docs/true_data/` mein daalo**, phir:
+  `uv run --env-file .env python scripts/check_docs.py --write-sources`
+  SUSPICIOUS files khud dekho, kharab hatao, aur `sources.csv` mein title/URL/date/language/category bharo.
+- Hindi/Marathi heuristics abhi sirf hand-made samples par test hue hain; asli docs par output dekh ke
+  thresholds adjust karne pad sakte hain.
+- Scanned Hindi/Marathi PDFs ke liye OCR support nahi (RapidOCR = Chinese/English).
