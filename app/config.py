@@ -14,6 +14,12 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql://postgres:postgres@localhost:5432/adv_rag"
 
+    # Host ports used by docker-compose.yml (declared here so .env validation passes)
+    postgres_host_port: int = 5432
+    qdrant_host_port: int = 6333
+    qdrant_grpc_host_port: int = 6334
+    api_host_port: int = 8000
+
     upstash_redis_url: str = ""
     upstash_redis_token: str = ""
     cache_ttl_embeddings: int = 604_800

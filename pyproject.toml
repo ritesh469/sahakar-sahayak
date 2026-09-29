@@ -42,6 +42,7 @@ dependencies = [
     # Agent orchestration
     "langgraph>=0.2.50",
     "langgraph-checkpoint-postgres>=2.0",
+    "psycopg[binary]>=3.2",  # bundles libpq (not present on Windows by default)
 
     # === Phase 2+ deps pinned now to avoid churn ===
     "sentence-transformers>=3.3.0",
@@ -56,6 +57,10 @@ dependencies = [
     # === Data pipeline deps ===
     "pyyaml>=6.0",   # config.yaml parsing in scripts/data_pipeline/
     "faker>=33.0.0", # synthetic K8s ops SQL generation
+
+    # Pinned as direct deps so uv pulls CUDA wheels (see [tool.uv.sources])
+    "torch>=2.12,<2.13",
+    "torchvision>=0.27,<0.28",
 ]
 
 [project.optional-dependencies]
@@ -87,6 +92,19 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.uv]
+# Windows: hardlinks from the uv cache fail with os error 396, so copy files instead
+link-mode = "copy"
+
+[tool.uv.sources]
+torch =[{ index = "pytorch-cu126", marker = "sys_platform == 'win32' or sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cu126", marker = "sys_platform == 'win32' or sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]
