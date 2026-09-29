@@ -922,3 +922,14 @@ expected behaviour, kya dikhana hai, aur demo ke waqt aane wali dikkaton ka hal.
 - `.env.example`: OpenAI ke liye commented settings (answer `gpt-5.4-mini`, grader/Ragas judge
   `gpt-4.1-mini` — judge non-reasoning hona chahiye).
 - Baaki (P18 step 3): poora test + app start + 3 demo sawaal — LLM runs ke baad.
+
+---
+
+## P19 — Viva notes (2026-09-30) — answer-quality numbers LLM runs ke baad
+
+**Kya hua (simple Hinglish mein):** `docs/VIVA_NOTES.md`: (1) project ek line mein, (2) har major
+file 2–3 line mein (ingestion, sawaal → jawab, evaluation), (3) RAG / TF-IDF / BM25 / dense /
+hybrid / RRF / reranker / recall@k / precision@k / MRR / faithfulness / hallucination /
+over-refusal / prompt injection / spotlighting / HyDE / CRAG / Self-RAG / sign test ki aasaan
+definitions, (4) 15 viva sawaal + chhote jawab, sirf is project ke code aur `results/*.csv` ke numbers
+se. Jin jawabon ko Exp 3–6 ke numbers chahiye, wahan "(LLM runs ke baad)" likha hai.
