@@ -1,0 +1,49 @@
+﻿config,date,raw_file,method,language,answer_doc_in_question_script,n,recall@5,mrr,llm_answer,llm_grader,embedding_model,reranker_model
+exp2_tfidf,2026-09-30T01:24:45,results/raw/exp2_tfidf_20260930_012445.csv,tfidf,en,True,40,0.825,0.7071,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_tfidf,2026-09-30T01:24:45,results/raw/exp2_tfidf_20260930_012445.csv,tfidf,en,False,18,0.2222,0.125,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_tfidf,2026-09-30T01:24:45,results/raw/exp2_tfidf_20260930_012445.csv,tfidf,hi,True,43,0.3256,0.2461,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_tfidf,2026-09-30T01:24:45,results/raw/exp2_tfidf_20260930_012445.csv,tfidf,hi,False,15,0.1333,0.1333,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_tfidf,2026-09-30T01:24:45,results/raw/exp2_tfidf_20260930_012445.csv,tfidf,mr,True,43,0.2791,0.219,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_tfidf,2026-09-30T01:24:45,results/raw/exp2_tfidf_20260930_012445.csv,tfidf,mr,False,15,0.1333,0.1333,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_tfidf,2026-09-30T01:24:45,results/raw/exp2_tfidf_20260930_012445.csv,tfidf,hinglish,True,40,0.85,0.71,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_tfidf,2026-09-30T01:24:45,results/raw/exp2_tfidf_20260930_012445.csv,tfidf,hinglish,False,18,0.2778,0.1806,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_bm25,2026-09-30T01:24:39,results/raw/exp2_bm25_20260930_012439.csv,bm25,en,True,40,0.95,0.8383,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_bm25,2026-09-30T01:24:39,results/raw/exp2_bm25_20260930_012439.csv,bm25,en,False,18,0.0556,0.0556,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_bm25,2026-09-30T01:24:39,results/raw/exp2_bm25_20260930_012439.csv,bm25,hi,True,43,0.3023,0.243,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_bm25,2026-09-30T01:24:39,results/raw/exp2_bm25_20260930_012439.csv,bm25,hi,False,15,0.0667,0.0222,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_bm25,2026-09-30T01:24:39,results/raw/exp2_bm25_20260930_012439.csv,bm25,mr,True,43,0.4651,0.3333,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_bm25,2026-09-30T01:24:39,results/raw/exp2_bm25_20260930_012439.csv,bm25,mr,False,15,0.0667,0.0167,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_bm25,2026-09-30T01:24:39,results/raw/exp2_bm25_20260930_012439.csv,bm25,hinglish,True,40,0.875,0.7708,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_bm25,2026-09-30T01:24:39,results/raw/exp2_bm25_20260930_012439.csv,bm25,hinglish,False,18,0.2222,0.1296,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_dense,2026-09-30T01:24:50,results/raw/exp2_dense_20260930_012450.csv,dense,en,True,40,0.85,0.7079,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_dense,2026-09-30T01:24:50,results/raw/exp2_dense_20260930_012450.csv,dense,en,False,18,0.3333,0.2315,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_dense,2026-09-30T01:24:50,results/raw/exp2_dense_20260930_012450.csv,dense,hi,True,43,0.6744,0.5329,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_dense,2026-09-30T01:24:50,results/raw/exp2_dense_20260930_012450.csv,dense,hi,False,15,0.9333,0.8056,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_dense,2026-09-30T01:24:50,results/raw/exp2_dense_20260930_012450.csv,dense,mr,True,43,0.7442,0.5345,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_dense,2026-09-30T01:24:50,results/raw/exp2_dense_20260930_012450.csv,dense,mr,False,15,0.9333,0.8389,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_dense,2026-09-30T01:24:50,results/raw/exp2_dense_20260930_012450.csv,dense,hinglish,True,40,0.85,0.6787,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_dense,2026-09-30T01:24:50,results/raw/exp2_dense_20260930_012450.csv,dense,hinglish,False,18,0.3333,0.2315,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_hybrid,2026-09-30T01:26:28,results/raw/exp2_hybrid_20260930_012628.csv,hybrid,en,True,40,0.95,0.7633,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_hybrid,2026-09-30T01:26:28,results/raw/exp2_hybrid_20260930_012628.csv,hybrid,en,False,18,0.2222,0.125,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_hybrid,2026-09-30T01:26:28,results/raw/exp2_hybrid_20260930_012628.csv,hybrid,hi,True,43,0.6047,0.4081,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_hybrid,2026-09-30T01:26:28,results/raw/exp2_hybrid_20260930_012628.csv,hybrid,hi,False,15,0.8,0.38,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_hybrid,2026-09-30T01:26:28,results/raw/exp2_hybrid_20260930_012628.csv,hybrid,mr,True,43,0.6744,0.4442,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_hybrid,2026-09-30T01:26:28,results/raw/exp2_hybrid_20260930_012628.csv,hybrid,mr,False,15,0.8,0.45,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_hybrid,2026-09-30T01:26:28,results/raw/exp2_hybrid_20260930_012628.csv,hybrid,hinglish,True,40,0.925,0.7425,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_hybrid,2026-09-30T01:26:28,results/raw/exp2_hybrid_20260930_012628.csv,hybrid,hinglish,False,18,0.5,0.263,,qwen/qwen3.8-27b,BAAI/bge-m3,
+exp2_dense_rerank,2026-09-30T02:17:42,results/raw/exp2_dense_rerank_20260930_021742.csv,dense + rerank,en,True,40,1.0,0.9208,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp2_dense_rerank,2026-09-30T02:17:42,results/raw/exp2_dense_rerank_20260930_021742.csv,dense + rerank,en,False,18,0.3333,0.2778,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp2_dense_rerank,2026-09-30T02:17:42,results/raw/exp2_dense_rerank_20260930_021742.csv,dense + rerank,hi,True,43,0.8605,0.6849,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp2_dense_rerank,2026-09-30T02:17:42,results/raw/exp2_dense_rerank_20260930_021742.csv,dense + rerank,hi,False,15,1.0,0.9056,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp2_dense_rerank,2026-09-30T02:17:42,results/raw/exp2_dense_rerank_20260930_021742.csv,dense + rerank,mr,True,43,0.8372,0.686,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp2_dense_rerank,2026-09-30T02:17:42,results/raw/exp2_dense_rerank_20260930_021742.csv,dense + rerank,mr,False,15,1.0,0.8833,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp2_dense_rerank,2026-09-30T02:17:42,results/raw/exp2_dense_rerank_20260930_021742.csv,dense + rerank,hinglish,True,40,0.975,0.7688,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp2_dense_rerank,2026-09-30T02:17:42,results/raw/exp2_dense_rerank_20260930_021742.csv,dense + rerank,hinglish,False,18,0.5556,0.4028,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp1_chunk_512,2026-09-30T01:16:23,results/raw/exp1_chunk_512_20260930_011623.csv,hybrid + rerank,en,True,40,1.0,0.9208,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp1_chunk_512,2026-09-30T01:16:23,results/raw/exp1_chunk_512_20260930_011623.csv,hybrid + rerank,en,False,18,0.3889,0.3333,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp1_chunk_512,2026-09-30T01:16:23,results/raw/exp1_chunk_512_20260930_011623.csv,hybrid + rerank,hi,True,43,0.7907,0.6585,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp1_chunk_512,2026-09-30T01:16:23,results/raw/exp1_chunk_512_20260930_011623.csv,hybrid + rerank,hi,False,15,0.9333,0.8889,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp1_chunk_512,2026-09-30T01:16:23,results/raw/exp1_chunk_512_20260930_011623.csv,hybrid + rerank,mr,True,43,0.8372,0.6868,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp1_chunk_512,2026-09-30T01:16:23,results/raw/exp1_chunk_512_20260930_011623.csv,hybrid + rerank,mr,False,15,0.9333,0.9,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp1_chunk_512,2026-09-30T01:16:23,results/raw/exp1_chunk_512_20260930_011623.csv,hybrid + rerank,hinglish,True,40,1.0,0.7946,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3
+exp1_chunk_512,2026-09-30T01:16:23,results/raw/exp1_chunk_512_20260930_011623.csv,hybrid + rerank,hinglish,False,18,0.5556,0.412,,qwen/qwen3.8-27b,BAAI/bge-m3,BAAI/bge-reranker-v2-m3

@@ -1,0 +1,81 @@
+﻿comparison,config_a,config_b,date_a,date_b,language,metric,n_paired,mean_a,mean_b,b_better,a_better,ties,sign_test_p
+chunk 256 vs 512,exp1_chunk_256,exp1_chunk_512,2026-09-30T01:13:51,2026-09-30T01:16:23,all,recall@5,232,0.8276,0.8405,8,5,219,0.5811
+chunk 256 vs 512,exp1_chunk_256,exp1_chunk_512,2026-09-30T01:13:51,2026-09-30T01:16:23,all,mrr,232,0.7168,0.7186,26,17,189,0.2221
+chunk 256 vs 512,exp1_chunk_256,exp1_chunk_512,2026-09-30T01:13:51,2026-09-30T01:16:23,en,recall@5,58,0.7931,0.8103,1,0,57,1.0
+chunk 256 vs 512,exp1_chunk_256,exp1_chunk_512,2026-09-30T01:13:51,2026-09-30T01:16:23,en,mrr,58,0.7213,0.7385,5,2,51,0.4531
+chunk 256 vs 512,exp1_chunk_256,exp1_chunk_512,2026-09-30T01:13:51,2026-09-30T01:16:23,hi,recall@5,58,0.8276,0.8276,2,2,54,1.0
+chunk 256 vs 512,exp1_chunk_256,exp1_chunk_512,2026-09-30T01:13:51,2026-09-30T01:16:23,hi,mrr,58,0.7233,0.7181,7,3,48,0.3438
+chunk 256 vs 512,exp1_chunk_256,exp1_chunk_512,2026-09-30T01:13:51,2026-09-30T01:16:23,mr,recall@5,58,0.8966,0.8621,1,3,54,0.625
+chunk 256 vs 512,exp1_chunk_256,exp1_chunk_512,2026-09-30T01:13:51,2026-09-30T01:16:23,mr,mrr,58,0.7805,0.742,5,8,45,0.5811
+chunk 256 vs 512,exp1_chunk_256,exp1_chunk_512,2026-09-30T01:13:51,2026-09-30T01:16:23,hinglish,recall@5,58,0.7931,0.8621,4,0,54,0.125
+chunk 256 vs 512,exp1_chunk_256,exp1_chunk_512,2026-09-30T01:13:51,2026-09-30T01:16:23,hinglish,mrr,58,0.6422,0.6759,9,4,45,0.2668
+chunk 512 vs 1024,exp1_chunk_512,exp1_chunk_1024,2026-09-30T01:16:23,2026-09-30T01:20:06,all,recall@5,232,0.8405,0.8448,6,5,221,1.0
+chunk 512 vs 1024,exp1_chunk_512,exp1_chunk_1024,2026-09-30T01:16:23,2026-09-30T01:20:06,all,mrr,232,0.7186,0.7014,24,30,178,0.4966
+chunk 512 vs 1024,exp1_chunk_512,exp1_chunk_1024,2026-09-30T01:16:23,2026-09-30T01:20:06,en,recall@5,58,0.8103,0.8103,1,1,56,1.0
+chunk 512 vs 1024,exp1_chunk_512,exp1_chunk_1024,2026-09-30T01:16:23,2026-09-30T01:20:06,en,mrr,58,0.7385,0.7256,4,5,49,1.0
+chunk 512 vs 1024,exp1_chunk_512,exp1_chunk_1024,2026-09-30T01:16:23,2026-09-30T01:20:06,hi,recall@5,58,0.8276,0.8448,2,1,55,1.0
+chunk 512 vs 1024,exp1_chunk_512,exp1_chunk_1024,2026-09-30T01:16:23,2026-09-30T01:20:06,hi,mrr,58,0.7181,0.6902,5,7,46,0.7744
+chunk 512 vs 1024,exp1_chunk_512,exp1_chunk_1024,2026-09-30T01:16:23,2026-09-30T01:20:06,mr,recall@5,58,0.8621,0.8621,1,1,56,1.0
+chunk 512 vs 1024,exp1_chunk_512,exp1_chunk_1024,2026-09-30T01:16:23,2026-09-30T01:20:06,mr,mrr,58,0.742,0.7241,6,9,43,0.6072
+chunk 512 vs 1024,exp1_chunk_512,exp1_chunk_1024,2026-09-30T01:16:23,2026-09-30T01:20:06,hinglish,recall@5,58,0.8621,0.8621,2,2,54,1.0
+chunk 512 vs 1024,exp1_chunk_512,exp1_chunk_1024,2026-09-30T01:16:23,2026-09-30T01:20:06,hinglish,mrr,58,0.6759,0.6655,9,9,40,1.0
+tfidf vs bm25,exp2_tfidf,exp2_bm25,2026-09-30T01:24:45,2026-09-30T01:24:39,all,recall@5,232,0.4569,0.4871,21,14,197,0.3105
+tfidf vs bm25,exp2_tfidf,exp2_bm25,2026-09-30T01:24:45,2026-09-30T01:24:39,all,mrr,232,0.3715,0.4011,36,22,174,0.0869
+tfidf vs bm25,exp2_tfidf,exp2_bm25,2026-09-30T01:24:45,2026-09-30T01:24:39,en,recall@5,58,0.6379,0.6724,5,3,50,0.7266
+tfidf vs bm25,exp2_tfidf,exp2_bm25,2026-09-30T01:24:45,2026-09-30T01:24:39,en,mrr,58,0.5264,0.5954,12,3,43,0.0352
+tfidf vs bm25,exp2_tfidf,exp2_bm25,2026-09-30T01:24:45,2026-09-30T01:24:39,hi,recall@5,58,0.2759,0.2414,3,5,50,0.7266
+tfidf vs bm25,exp2_tfidf,exp2_bm25,2026-09-30T01:24:45,2026-09-30T01:24:39,hi,mrr,58,0.217,0.1859,5,8,45,0.5811
+tfidf vs bm25,exp2_tfidf,exp2_bm25,2026-09-30T01:24:45,2026-09-30T01:24:39,mr,recall@5,58,0.2414,0.3621,10,3,45,0.0923
+tfidf vs bm25,exp2_tfidf,exp2_bm25,2026-09-30T01:24:45,2026-09-30T01:24:39,mr,mrr,58,0.1968,0.2514,12,5,41,0.1435
+tfidf vs bm25,exp2_tfidf,exp2_bm25,2026-09-30T01:24:45,2026-09-30T01:24:39,hinglish,recall@5,58,0.6724,0.6724,3,3,52,1.0
+tfidf vs bm25,exp2_tfidf,exp2_bm25,2026-09-30T01:24:45,2026-09-30T01:24:39,hinglish,mrr,58,0.5457,0.5718,7,6,45,1.0
+bm25 vs dense,exp2_bm25,exp2_dense,2026-09-30T01:24:39,2026-09-30T01:24:50,all,recall@5,232,0.4871,0.7284,73,17,142,0.0
+bm25 vs dense,exp2_bm25,exp2_dense,2026-09-30T01:24:39,2026-09-30T01:24:50,all,mrr,232,0.4011,0.5792,89,35,108,0.0
+bm25 vs dense,exp2_bm25,exp2_dense,2026-09-30T01:24:39,2026-09-30T01:24:50,en,recall@5,58,0.6724,0.6897,6,5,47,1.0
+bm25 vs dense,exp2_bm25,exp2_dense,2026-09-30T01:24:39,2026-09-30T01:24:50,en,mrr,58,0.5954,0.5601,8,11,39,0.6476
+bm25 vs dense,exp2_bm25,exp2_dense,2026-09-30T01:24:39,2026-09-30T01:24:50,hi,recall@5,58,0.2414,0.7414,32,3,23,0.0
+bm25 vs dense,exp2_bm25,exp2_dense,2026-09-30T01:24:39,2026-09-30T01:24:50,hi,mrr,58,0.1859,0.6034,36,4,18,0.0
+bm25 vs dense,exp2_bm25,exp2_dense,2026-09-30T01:24:39,2026-09-30T01:24:50,mr,recall@5,58,0.3621,0.7931,28,3,27,0.0
+bm25 vs dense,exp2_bm25,exp2_dense,2026-09-30T01:24:39,2026-09-30T01:24:50,mr,mrr,58,0.2514,0.6132,35,5,18,0.0
+bm25 vs dense,exp2_bm25,exp2_dense,2026-09-30T01:24:39,2026-09-30T01:24:50,hinglish,recall@5,58,0.6724,0.6897,7,6,45,1.0
+bm25 vs dense,exp2_bm25,exp2_dense,2026-09-30T01:24:39,2026-09-30T01:24:50,hinglish,mrr,58,0.5718,0.5399,10,15,33,0.4244
+dense vs hybrid,exp2_dense,exp2_hybrid,2026-09-30T01:24:50,2026-09-30T01:26:28,all,recall@5,232,0.7284,0.7198,17,19,196,0.8679
+dense vs hybrid,exp2_dense,exp2_hybrid,2026-09-30T01:24:50,2026-09-30T01:26:28,all,mrr,232,0.5792,0.5014,33,65,134,0.0016
+dense vs hybrid,exp2_dense,exp2_hybrid,2026-09-30T01:24:50,2026-09-30T01:26:28,en,recall@5,58,0.6897,0.7241,4,2,52,0.6875
+dense vs hybrid,exp2_dense,exp2_hybrid,2026-09-30T01:24:50,2026-09-30T01:26:28,en,mrr,58,0.5601,0.5652,10,6,42,0.4545
+dense vs hybrid,exp2_dense,exp2_hybrid,2026-09-30T01:24:50,2026-09-30T01:26:28,hi,recall@5,58,0.7414,0.6552,2,7,49,0.1797
+dense vs hybrid,exp2_dense,exp2_hybrid,2026-09-30T01:24:50,2026-09-30T01:26:28,hi,mrr,58,0.6034,0.4009,4,26,28,0.0001
+dense vs hybrid,exp2_dense,exp2_hybrid,2026-09-30T01:24:50,2026-09-30T01:26:28,mr,recall@5,58,0.7931,0.7069,3,8,47,0.2266
+dense vs hybrid,exp2_dense,exp2_hybrid,2026-09-30T01:24:50,2026-09-30T01:26:28,mr,mrr,58,0.6132,0.4457,5,28,25,0.0001
+dense vs hybrid,exp2_dense,exp2_hybrid,2026-09-30T01:24:50,2026-09-30T01:26:28,hinglish,recall@5,58,0.6897,0.7931,8,2,48,0.1094
+dense vs hybrid,exp2_dense,exp2_hybrid,2026-09-30T01:24:50,2026-09-30T01:26:28,hinglish,mrr,58,0.5399,0.5937,14,5,39,0.0636
+dense: rerank off vs on,exp2_dense,exp2_dense_rerank,2026-09-30T01:24:50,2026-09-30T02:17:42,all,recall@5,232,0.7284,0.8534,29,0,203,0.0
+dense: rerank off vs on,exp2_dense,exp2_dense_rerank,2026-09-30T01:24:50,2026-09-30T02:17:42,all,mrr,232,0.5792,0.7139,76,11,145,0.0
+dense: rerank off vs on,exp2_dense,exp2_dense_rerank,2026-09-30T01:24:50,2026-09-30T02:17:42,en,recall@5,58,0.6897,0.7931,6,0,52,0.0312
+dense: rerank off vs on,exp2_dense,exp2_dense_rerank,2026-09-30T01:24:50,2026-09-30T02:17:42,en,mrr,58,0.5601,0.7213,17,0,41,0.0
+dense: rerank off vs on,exp2_dense,exp2_dense_rerank,2026-09-30T01:24:50,2026-09-30T02:17:42,hi,recall@5,58,0.7414,0.8966,9,0,49,0.0039
+dense: rerank off vs on,exp2_dense,exp2_dense_rerank,2026-09-30T01:24:50,2026-09-30T02:17:42,hi,mrr,58,0.6034,0.742,20,3,35,0.0005
+dense: rerank off vs on,exp2_dense,exp2_dense_rerank,2026-09-30T01:24:50,2026-09-30T02:17:42,mr,recall@5,58,0.7931,0.8793,5,0,53,0.0625
+dense: rerank off vs on,exp2_dense,exp2_dense_rerank,2026-09-30T01:24:50,2026-09-30T02:17:42,mr,mrr,58,0.6132,0.7371,19,4,35,0.0026
+dense: rerank off vs on,exp2_dense,exp2_dense_rerank,2026-09-30T01:24:50,2026-09-30T02:17:42,hinglish,recall@5,58,0.6897,0.8448,9,0,49,0.0039
+dense: rerank off vs on,exp2_dense,exp2_dense_rerank,2026-09-30T01:24:50,2026-09-30T02:17:42,hinglish,mrr,58,0.5399,0.6552,20,4,34,0.0015
+hybrid: rerank off vs on,exp2_hybrid,exp1_chunk_512,2026-09-30T01:26:28,2026-09-30T01:16:23,all,recall@5,232,0.7198,0.8405,30,2,200,0.0
+hybrid: rerank off vs on,exp2_hybrid,exp1_chunk_512,2026-09-30T01:26:28,2026-09-30T01:16:23,all,mrr,232,0.5014,0.7186,97,13,122,0.0
+hybrid: rerank off vs on,exp2_hybrid,exp1_chunk_512,2026-09-30T01:26:28,2026-09-30T01:16:23,en,recall@5,58,0.7241,0.8103,5,0,53,0.0625
+hybrid: rerank off vs on,exp2_hybrid,exp1_chunk_512,2026-09-30T01:26:28,2026-09-30T01:16:23,en,mrr,58,0.5652,0.7385,19,0,39,0.0
+hybrid: rerank off vs on,exp2_hybrid,exp1_chunk_512,2026-09-30T01:26:28,2026-09-30T01:16:23,hi,recall@5,58,0.6552,0.8276,11,1,46,0.0063
+hybrid: rerank off vs on,exp2_hybrid,exp1_chunk_512,2026-09-30T01:26:28,2026-09-30T01:16:23,hi,mrr,58,0.4009,0.7181,31,3,24,0.0
+hybrid: rerank off vs on,exp2_hybrid,exp1_chunk_512,2026-09-30T01:26:28,2026-09-30T01:16:23,mr,recall@5,58,0.7069,0.8621,10,1,47,0.0117
+hybrid: rerank off vs on,exp2_hybrid,exp1_chunk_512,2026-09-30T01:26:28,2026-09-30T01:16:23,mr,mrr,58,0.4457,0.742,32,4,22,0.0
+hybrid: rerank off vs on,exp2_hybrid,exp1_chunk_512,2026-09-30T01:26:28,2026-09-30T01:16:23,hinglish,recall@5,58,0.7931,0.8621,4,0,54,0.125
+hybrid: rerank off vs on,exp2_hybrid,exp1_chunk_512,2026-09-30T01:26:28,2026-09-30T01:16:23,hinglish,mrr,58,0.5937,0.6759,15,6,37,0.0784
+dense + rerank vs hybrid + rerank,exp2_dense_rerank,exp1_chunk_512,2026-09-30T02:17:42,2026-09-30T01:16:23,all,recall@5,232,0.8534,0.8405,3,6,223,0.5078
+dense + rerank vs hybrid + rerank,exp2_dense_rerank,exp1_chunk_512,2026-09-30T02:17:42,2026-09-30T01:16:23,all,mrr,232,0.7139,0.7186,9,8,215,1.0
+dense + rerank vs hybrid + rerank,exp2_dense_rerank,exp1_chunk_512,2026-09-30T02:17:42,2026-09-30T01:16:23,en,recall@5,58,0.7931,0.8103,1,0,57,1.0
+dense + rerank vs hybrid + rerank,exp2_dense_rerank,exp1_chunk_512,2026-09-30T02:17:42,2026-09-30T01:16:23,en,mrr,58,0.7213,0.7385,2,0,56,0.5
+dense + rerank vs hybrid + rerank,exp2_dense_rerank,exp1_chunk_512,2026-09-30T02:17:42,2026-09-30T01:16:23,hi,recall@5,58,0.8966,0.8276,0,4,54,0.125
+dense + rerank vs hybrid + rerank,exp2_dense_rerank,exp1_chunk_512,2026-09-30T02:17:42,2026-09-30T01:16:23,hi,mrr,58,0.742,0.7181,1,5,52,0.2188
+dense + rerank vs hybrid + rerank,exp2_dense_rerank,exp1_chunk_512,2026-09-30T02:17:42,2026-09-30T01:16:23,mr,recall@5,58,0.8793,0.8621,1,2,55,1.0
+dense + rerank vs hybrid + rerank,exp2_dense_rerank,exp1_chunk_512,2026-09-30T02:17:42,2026-09-30T01:16:23,mr,mrr,58,0.7371,0.742,3,2,53,1.0
+dense + rerank vs hybrid + rerank,exp2_dense_rerank,exp1_chunk_512,2026-09-30T02:17:42,2026-09-30T01:16:23,hinglish,recall@5,58,0.8448,0.8621,1,0,57,1.0
+dense + rerank vs hybrid + rerank,exp2_dense_rerank,exp1_chunk_512,2026-09-30T02:17:42,2026-09-30T01:16:23,hinglish,mrr,58,0.6552,0.6759,3,1,54,0.625

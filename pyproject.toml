@@ -77,6 +77,7 @@ dev = [
     "reportlab>=4.2.0",  # PDF generation in scripts/data_pipeline/05_diversify_true_formats.py
     "python-docx>=1.1.0",  # DOCX generation in scripts/data_pipeline/05_diversify_true_formats.py
     "streamlit>=1.40.0",
+    "matplotlib>=3.9",
 ]
 
 [tool.ruff]

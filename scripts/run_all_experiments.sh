@@ -12,7 +12,7 @@ mkdir -p results/logs
 
 CONFIGS=(
   exp1_chunk_256 exp1_chunk_512 exp1_chunk_1024
-  exp2_bm25 exp2_tfidf exp2_dense exp2_hybrid
+  exp2_bm25 exp2_tfidf exp2_dense exp2_hybrid exp2_dense_rerank
   exp3_hybrid exp3_hybrid_rerank
 )
 
@@ -27,6 +27,9 @@ for name in "${CONFIGS[@]}"; do
     failed+=("$name")
   fi
 done
+
+# Paper tables (results/*_results.csv) from the latest run of each config
+uv run python eval/make_result_tables.py
 
 if [ ${#failed[@]} -gt 0 ]; then
   echo "Failed: ${failed[*]}"

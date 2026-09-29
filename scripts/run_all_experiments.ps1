@@ -13,7 +13,7 @@ New-Item -ItemType Directory -Force "results\logs" | Out-Null
 
 $configs = @(
     "exp1_chunk_256", "exp1_chunk_512", "exp1_chunk_1024",
-    "exp2_bm25", "exp2_tfidf", "exp2_dense", "exp2_hybrid",
+    "exp2_bm25", "exp2_tfidf", "exp2_dense", "exp2_hybrid", "exp2_dense_rerank",
     "exp3_hybrid", "exp3_hybrid_rerank"
 )
 
@@ -30,6 +30,9 @@ foreach ($name in $configs) {
         $failed += $name
     }
 }
+
+# Paper tables (results/*_results.csv) from the latest run of each config
+cmd /c "uv run python eval/make_result_tables.py"
 
 if ($failed.Count -gt 0) {
     Write-Host ("Failed: " + ($failed -join ", "))

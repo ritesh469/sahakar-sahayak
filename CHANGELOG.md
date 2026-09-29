@@ -797,3 +797,52 @@ ki wajah se generation experiments hafton lete).
 
 - `pytest tests` → 118 passed.
 - Exp 6 runs (`exp6_hyde/crag/selfrag/selfrag_original`) abhi nahi chale — LLM key ke baad (P13/P16).
+
+---
+
+## P13 (part 1) — Exp 1 + Exp 2 (retrieval-only) results + paper tables (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** Jin experiments mein LLM nahi lagta (Exp 1 chunk size, Exp 2
+search method) wo chal gaye; 232 answerable sawaal (58 × 4 bhasha). Ek naya config
+`exp2_dense_rerank` bhi chalaya, taaki pata chale ki paisa lagne wale runs (Exp 3–6) ka base setting
+hybrid + rerank sahi hai ya dense + rerank. Saari paper tables ab `eval/make_result_tables.py` se
+bante hain (koi number haath se nahi).
+
+### Results (recall@5 / MRR, `results/retrieval_results.csv`, `chunking_results.csv`)
+
+| method (512) | recall@5 | MRR | en | hi | mr | hinglish (recall@5) |
+|---|---|---|---|---|---|---|
+| tfidf | 0.457 | 0.372 | 0.638 | 0.276 | 0.241 | 0.672 |
+| bm25 | 0.487 | 0.401 | 0.672 | 0.241 | 0.362 | 0.672 |
+| dense | 0.728 | 0.579 | 0.690 | 0.741 | 0.793 | 0.690 |
+| hybrid | 0.720 | 0.501 | 0.724 | 0.655 | 0.707 | 0.793 |
+| dense + rerank | 0.853 | 0.714 | 0.793 | 0.897 | 0.879 | 0.845 |
+| hybrid + rerank | 0.841 | 0.719 | 0.810 | 0.828 | 0.862 | 0.862 |
+
+Chunk size (hybrid + rerank): 256 → 0.828 / 0.717, 512 → 0.841 / 0.719, 1024 → 0.845 / 0.701.
+
+### Findings (sign test, `results/significance.csv`)
+
+- **Reranker sabse bada asar:** hybrid 0.720 → 0.841 (30 sawaal behtar, 2 kharab, p < 0.001);
+  dense 0.728 → 0.853 (29 behtar, 0 kharab).
+- **Chunk size se pakka fark nahi** (256 vs 512 p = 0.58, 512 vs 1024 p = 1.0).
+- **Hybrid Hindi/Marathi mein nuksaan karta hai (rerank ke bina):** BM25 shabd milata hai; bahut se
+  Hindi/Marathi sawaalon ka jawab English PDF mein hai. Dense vs hybrid MRR 0.579 vs 0.501 (p = 0.002).
+  Rerank ke baad dense + rerank aur hybrid + rerank barabar (recall p = 0.51, MRR p = 1.0) → **base
+  config hybrid + rerank hi rakha** (plan ke hisaab se; data ise galat nahi kehta).
+- **Script match (`results/script_match_results.csv`):** sirf wo sawaal jinka document usi lipi mein
+  hai — BM25 (naya tokenizer) vs TF-IDF (purana): English 0.825 → 0.950, Marathi 0.279 → 0.465, par
+  Hindi 0.326 → 0.302. Hindi PDFs ka text layer toota hai (P3), isliye tokenizer fix wahan madad nahi
+  kar pata. Dense bhi Hindi same-script par 0.674 vs cross-script (English doc) 0.933.
+- Sign test mein ek sawaal ke 4 bhasha versions independent nahi hain → p "indicative" hai (paper
+  Limitations).
+
+### Files
+
+- `configs/exp2_dense_rerank.yaml` (naya); `scripts/run_all_experiments.{ps1,sh}` mein joda, aur
+  aakhir mein tables banate hain.
+- `eval/make_result_tables.py` (naya): chunking / retrieval / script_match / reranking / multilingual /
+  hallucination / advanced_rag / significance CSVs; jin runs ka data nahi, wo table skip.
+- `tests/test_make_result_tables.py` (3 tests).
+- `pyproject.toml`, `uv.lock`: `matplotlib` (dev) — P15 graphs ke liye.
+- `results/raw/*.csv`, `results/summary.csv`, `results/*_results.csv`, `results/significance.csv`.

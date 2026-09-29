@@ -1,0 +1,9 @@
+# Exp 2 extension: 512 tokens, dense + rerank, retrieval metrics only. Compared with
+# exp1_chunk_512 (hybrid + rerank) to pick the base config for the generation runs (Exp 3-6):
+# Exp 2 showed BM25 hurts Hindi/Marathi questions whose answer is in an English document.
+name: exp2_dense_rerank
+chunk_size: 512
+search_mode: dense
+rerank: true
+top_k: 5
+generate: false
