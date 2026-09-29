@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import uuid
 
 from qdrant_client import QdrantClient
@@ -53,6 +54,7 @@ def recreate_collection(collection: str | None = None) -> None:
     client = get_client()
     if client.collection_exists(collection):
         client.delete_collection(collection)
+    invalidate_sparse_cache(collection)
     ensure_collection(collection)
 
 def upsert_chunks(
@@ -72,6 +74,7 @@ def upsert_chunks(
         for chunk, embedding in zip(chunks, embeddings, strict=True)
     ]
     client.upsert(collection_name=collection, points=points)
+    invalidate_sparse_cache(collection)
 
 def search(
     query_embedding: list[float], top_k: int = 5, collection: str | None = None
@@ -87,34 +90,69 @@ def search(
     return [_to_chunk(p.payload, float(p.score)) for p in results]
 
 
-def _build_sparse_index(collection: str | None = None):
-    from app.services.sparse_vector_service import SparseVectorIndex
+SPARSE_KINDS = ("bm25", "tfidf")
+
+# Sparse indexes built once per (kind, collection) and kept in memory (Known problem #1: the
+# index used to be rebuilt from a full Qdrant scroll on every query). upsert/recreate drop the
+# entries of that collection so the next query rebuilds from the new contents.
+_sparse_cache: dict[tuple[str, str], object] = {}
+_sparse_lock = threading.Lock()
+
+
+def _scroll_all(collection: str, page_size: int = 1000) -> list[dict]:
+    """Every chunk of the collection (paginated: a single scroll(limit=10000) silently dropped
+    everything after the first 10k points)."""
     client = get_client()
-    all_points, _next_page = client.scroll(
-        collection_name=collection or collection_name(),
-        limit=10000,
-        with_payload=True,
-        with_vectors=False,
-    )
-    documents = [
-        {
-            "text": point.payload.get("text", "") if point.payload else "",
-            "source": point.payload.get("source", "") if point.payload else "",
-            "page_number": point.payload.get("page_number") if point.payload else None,
-            "id": str(point.id),
-        }
-        for point in all_points
-    ]
-    sparse_index = SparseVectorIndex()
-    sparse_index.fit(documents)
-    return sparse_index
+    documents: list[dict] = []
+    offset = None
+    while True:
+        points, offset = client.scroll(
+            collection_name=collection, limit=page_size, offset=offset,
+            with_payload=True, with_vectors=False,
+        )
+        for point in points:
+            payload = point.payload or {}
+            documents.append({
+                "text": payload.get("text", ""),
+                "source": payload.get("source", ""),
+                "page_number": payload.get("page_number"),
+                "id": str(point.id),
+            })
+        if offset is None:
+            return documents
+
+
+def _build_sparse_index(collection: str | None = None, kind: str = "bm25"):
+    from app.services.sparse_vector_service import BM25Index, SparseVectorIndex
+
+    if kind not in SPARSE_KINDS:
+        raise ValueError(f"unknown sparse index {kind!r}; expected one of {SPARSE_KINDS}")
+    index = BM25Index() if kind == "bm25" else SparseVectorIndex()
+    index.fit(_scroll_all(collection or collection_name()))
+    return index
+
+
+def get_sparse_index(collection: str | None = None, kind: str = "bm25"):
+    """Cached sparse index for the collection (built on first use)."""
+    key = (kind, collection or collection_name())
+    with _sparse_lock:
+        if key not in _sparse_cache:
+            _sparse_cache[key] = _build_sparse_index(key[1], kind)
+        return _sparse_cache[key]
+
+
+def invalidate_sparse_cache(collection: str | None = None) -> None:
+    """Drop cached sparse indexes of one collection (all collections if None)."""
+    with _sparse_lock:
+        for key in [k for k in _sparse_cache if collection is None or k[1] == collection]:
+            del _sparse_cache[key]
+
 
 def sparse_search(
-    query_text: str, top_k: int = 5, collection: str | None = None
+    query_text: str, top_k: int = 5, collection: str | None = None, kind: str = "bm25"
 ) -> list[RetrievedChunk]:
-    """Pure sparse search using TF-IDF (no dense embeddings, no fusion)."""
-    sparse_index = _build_sparse_index(collection)
-    return sparse_index.search(query_text, top_k=top_k)
+    """Keyword search only: BM25 (default) or the original TF-IDF baseline."""
+    return get_sparse_index(collection, kind).search(query_text, top_k=top_k)
 
 
 def hybrid_search(
@@ -124,11 +162,13 @@ def hybrid_search(
     rrf_k: int = 60,
     sparse_top_k: int = 20,
     collection: str | None = None,
+    sparse_kind: str = "bm25",
 ) -> list[RetrievedChunk]:
-
+    """Dense + sparse (BM25 by default), fused with Reciprocal Rank Fusion."""
     from app.services.sparse_vector_service import fuse_rrf
+
     dense_results = search(query_embedding, top_k=sparse_top_k, collection=collection)
-    sparse_index = _build_sparse_index(collection)
-    sparse_results = sparse_index.search(query_text, top_k=sparse_top_k)
+    sparse_results = sparse_search(query_text, top_k=sparse_top_k, collection=collection,
+                                   kind=sparse_kind)
     fused = fuse_rrf([dense_results, sparse_results], rrf_k=rrf_k)
     return fused[:top_k]

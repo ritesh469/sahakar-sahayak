@@ -75,7 +75,10 @@ class QueryRequest(BaseModel):
     enable_rerank: bool = False
     top_k: int = Field(default=5, ge=1, le=50)
     enable_hyde: bool = False
-    search_mode: Literal["dense", "sparse", "hybrid"] = "dense"
+    # dense | bm25 | tfidf | hybrid (dense + BM25 via RRF); default = SEARCH_MODE (P8)
+    search_mode: Literal["dense", "bm25", "tfidf", "hybrid"] = Field(
+        default_factory=lambda: settings.search_mode
+    )
     enable_crag: bool = Field(default_factory=lambda: settings.crag_enabled_by_default)
     enable_self_reflective: bool = False
 

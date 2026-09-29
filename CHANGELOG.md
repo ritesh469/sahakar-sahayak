@@ -458,3 +458,71 @@ p. 1/3), राज्य संनियंत्रण समिती अध�
 - PII: 11 smoke/example sawaal redaction ke baad bilkul same; `ramesh.patil@example.com` / `9876543210`
   → `<EMAIL_ADDRESS>` / `<PHONE_NUMBER>`.
 - API `/query` (guardrails ke saath) Marathi sawaal → sahi Marathi jawab + page wale sources.
+
+---
+
+## P8 — Asli BM25 + Devanagari tokenizer (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** Keyword search (sparse) ab asli **BM25** hai, apne tokenizer ke saath
+jo Hindi/Marathi shabdon ko poora rakhta hai. Pehle TF-IDF tha, jiska tokenizer matra (ा ि ी) aur
+halant (्) par shabd tod deta tha. BM25 index ab ek hi baar banta hai aur memory mein rehta hai; pehle
+har query par Qdrant se poora data padh ke dobara banta tha. Known problems #1, #2 fix.
+
+**Aasaan bhasha mein:**
+- **BM25** = keyword search ka standard formula: jo chunk query ke shabd zyada baar (aur rare shabd)
+  rakhta hai woh upar; bahut lambe chunk ko thoda penalty.
+- **Hybrid** = dense (meaning se, bge-m3) + BM25 (exact shabd se) ki do ranked lists ko **RRF** se
+  milana: har chunk ko `1/(60 + rank)` points dono lists se, jod ke nayi ranking.
+
+### Kya badla
+
+| File | Badlav |
+|---|---|
+| `app/services/text_tokenizer.py` (naya) | Word = letters/digits/matra/halant ka run (Devanagari block U+0900–097F, danda ।॥ chhod ke); NFC; zero-width joiner hatao; ०-९ → 0-9; lowercase; chhoti hand-written EN/HI/MR stopword lists |
+| `app/services/sparse_vector_service.py` | `BM25Index` (rank_bm25 `BM25Okapi`, k1=1.5, b=0.75); purana `SparseVectorIndex` (TF-IDF) baseline ke liye rakha; `fuse_rrf` ab chunk ko source+page+text se pehchanta hai (pehle sirf text: English/Hindi PDF ki same table ek ho jaati) |
+| `app/services/vector_store.py` | `_scroll_all` (paginated; purana `scroll(limit=10000)` 10k ke baad chunks chhod deta), `get_sparse_index(collection, kind)` cache, `invalidate_sparse_cache` (upsert/recreate par), `sparse_search(kind=bm25\|tfidf)`, `hybrid_search(sparse_kind=bm25)` |
+| `app/services/rag_service.py` | `search_mode(flags)`: `dense \| bm25 \| tfidf \| hybrid`, default `SEARCH_MODE`; purana naam `sparse` = `tfidf` alias |
+| `app/models.py` | `QueryRequest.search_mode`: `dense/bm25/tfidf/hybrid`, default `SEARCH_MODE` (Streamlit dropdown API schema se ye options khud le leta hai) |
+| `app/config.py`, `.env.example` | `SEARCH_MODE=hybrid` |
+| `pyproject.toml`, `uv.lock` | `rank-bm25` |
+| `scripts/compare_sparse.py` (naya) | Paper ke liye purana vs naya: tokens, corpus-level Devanagari stats, latency → `results/sparse_comparison.json` |
+| `tests/test_bm25.py` (naya) | 18 tests |
+
+### Results (`results/sparse_comparison.json`, `coop_512`, 1,969 chunks)
+
+Tokens:
+
+| Text | Purana TF-IDF | Naya BM25 tokenizer |
+|---|---|---|
+| प्रधानमंत्री फसल बीमा योजना | `रध, नम, फसल, जन` | `प्रधानमंत्री, फसल, बीमा, योजना` |
+| सहकारी समितियों का पंजीकरण | `सहक, सम, करण` | `सहकारी, समितियों, पंजीकरण` |
+| शेतकऱ्यांना पीक विमा कसा मिळतो? | `तकऱ, कस, ळत` | `शेतकऱ्यांना, पीक, विमा, कसा, मिळतो` |
+
+Corpus ke Devanagari shabd (word types) purane analyzer mein:
+
+| Documents | Word types | Poore bache | Toote | Gayab |
+|---|---|---|---|---|
+| sab | 16,609 | 5.2% | 63.3% | 31.5% |
+| hi | 3,331 | 6.6% | 55.5% | 37.9% |
+| mr | 10,905 | 3.1% | 64.6% | 32.3% |
+
+Latency (10 smoke sawaal × 3):
+
+| | Per query |
+|---|---|
+| Purana TF-IDF (har query par index rebuild) | mean 846 ms, median 779 ms |
+| Naya BM25 (ek baar build 1,038 ms, phir cache) | mean 6.3 ms, median 6.1 ms |
+
+### Dhyan dene wali baat (paper)
+
+"प्रधानमंत्री फसल बीमा योजना" (fasal bima = crop insurance) par BM25 ne `grain_storage_plan_sop_hi.pdf`
+ko pehle aur PMFBY ka Marathi GR 2nd rakha; TF-IDF ne top-5 sab PMFBY diye. Wajah: Marathi GR mein
+"पीक विमा" likha hai, "फसल बीमा" nahi (Hindi vs Marathi vocabulary), aur "प्रधानमंत्री/योजना" bahut
+documents mein hain. Tokenizer theek hone se retrieval apne aap behtar ho, ye zaroori nahi — Exp 2
+(P12/P13) mein poore eval set par naapna.
+
+### Verify kiya
+
+- `pytest tests/` → sab pass (18 naye).
+- `compare_sparse.py` upar ke numbers.
+- API/Streamlit: `/openapi.json` mein `search_mode` enum `dense, bm25, tfidf, hybrid`.

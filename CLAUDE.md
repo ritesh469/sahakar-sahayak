@@ -51,13 +51,15 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 > **DRAFT (P1 ke baad Claude ne code padh ke likha) — user approval pending.**
 > Numbering prompts ke hisaab se rakhi gayi hai (P2: #3–#6, P5: #7–#10 + #13, P8: #1–#2, P9: #12, P16: #11).
 
-1. **Sparse search BM25 nahi, TF-IDF hai.** `sparse_vector_service.py` sklearn `TfidfVectorizer` use karta hai.
-   Sparse index har query par Qdrant se dobara banta hai (`vector_store._build_sparse_index`, koi cache nahi),
-   aur `scroll(limit=10000)` se 10k se zyada chunks chhoot jaate hain. (P8)
-2. **Tokenizer Devanagari todta hai.** TF-IDF ka default `token_pattern` `\w\w+` hai; Python mein matra/halant
-   (जैसे `ा`, `ि`, `्`) `\w` nahi hain, isliye Hindi/Marathi words tukdon mein toot jaate hain.
-   Upar se `stop_words="english"` hai. **Verified (P1):** "प्रधानमंत्री फसल बीमा योजना" → TF-IDF tokens
-   `['जन', 'नम', 'फसल', 'रध']` (बीमा poora gayab, sirf फसल sahi). (P8)
+1. **(FIXED, P8)** ~~Sparse search BM25 nahi, TF-IDF hai.~~ Ab `BM25Index` (rank_bm25 BM25Okapi) +
+   `SEARCH_MODE=dense|bm25|tfidf|hybrid` (hybrid = dense + BM25, RRF). Sparse index har (kind, collection)
+   ke liye ek baar banta hai aur memory mein cache (`vector_store.get_sparse_index`; upsert/recreate par
+   invalidate); scroll paginated (10k cap khatam). Purana TF-IDF `tfidf` mode mein baseline ke roop mein.
+2. **(FIXED, P8)** ~~Tokenizer Devanagari todta hai.~~ `app/services/text_tokenizer.py`: matra/halant word
+   ke andar, NFC, zero-width hatao, Devanagari digits → ASCII, EN/HI/MR stopwords. Corpus par (P8,
+   `results/sparse_comparison.json`): purana analyzer Devanagari word types mein se sirf 5.2% poore rakhta
+   tha, 63.3% todta, 31.5% gayab. "प्रधानमंत्री फसल बीमा योजना" → purana `['रध', 'नम', 'फसल', 'जन']`,
+   naya `['प्रधानमंत्री', 'फसल', 'बीमा', 'योजना']`.
 3. **(FIXED, P2)** ~~Config hardcoded.~~ Ab `CHUNK_SIZE`, `CHUNK_OVERLAP`, `EMBEDDING_DIM` `.env` se.
 4. **(FIXED, P2)** ~~Docling device = MPS.~~ Ab `AcceleratorDevice.AUTO` (Windows par CUDA).
 5. **(FIXED, P2)** ~~page_number gum ho jata hai.~~ Chunk → Qdrant payload → search/rerank/RRF/preview

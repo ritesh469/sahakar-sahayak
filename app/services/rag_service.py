@@ -38,9 +38,22 @@ def _flag(flags: dict | None, key: str, default):
 
 
 
+SEARCH_MODES = ("dense", "bm25", "tfidf", "hybrid")
+
+
+def search_mode(flags: dict | None) -> str:
+    """Search mode from the request flags, else SEARCH_MODE. "sparse" is the old name of the
+    TF-IDF mode and is kept as an alias."""
+    mode = _flag(flags, "search_mode", None) or settings.search_mode
+    mode = "tfidf" if mode == "sparse" else mode
+    if mode not in SEARCH_MODES:
+        raise ValueError(f"unknown search_mode {mode!r}; expected one of {SEARCH_MODES}")
+    return mode
+
+
 def _retrieve(question: str, flags: dict | None = None) -> list[RetrievedChunk]:
     final_top_k = int(_flag(flags, "top_k", 5))
-    mode = _flag(flags, "search_mode", "dense")
+    mode = search_mode(flags)
     rerank = bool(_flag(flags, "enable_rerank", False))
     hyde = bool(_flag(flags, "enable_hyde", False))
     enable_crag = bool(_flag(flags, "enable_crag", settings.crag_enabled_by_default))
@@ -50,8 +63,8 @@ def _retrieve(question: str, flags: dict | None = None) -> list[RetrievedChunk]:
 
     if hyde:
         chunks = HyDERetriever().retrieve(question, top_k=retrieve_k)
-    elif mode == "sparse":
-        chunks = sparse_search(question, top_k=retrieve_k)
+    elif mode in ("bm25", "tfidf"):
+        chunks = sparse_search(question, top_k=retrieve_k, kind=mode)
     elif mode == "hybrid":
         query_embedding = embed_texts([question])[0]
         chunks = hybrid_search(query_embedding, question, top_k=retrieve_k)
@@ -257,7 +270,7 @@ def run_rag(
     logger.info(
         "L8 query | intent={} mode={} rerank={} hyde={} crag={} self_rag={} top_k={}",
         intent,
-        _flag(flags, "search_mode", "dense"),
+        search_mode(flags),
         _flag(flags, "enable_rerank", False),
         _flag(flags, "enable_hyde", False),
         _flag(flags, "enable_crag", settings.crag_enabled_by_default),
@@ -280,7 +293,7 @@ def run_rag(
 
 def _cache_context(flags: dict | None) -> dict:
     return {
-        "search_mode": _flag(flags, "search_mode", "dense"),
+        "search_mode": search_mode(flags),
         "enable_hyde": bool(_flag(flags, "enable_hyde", False)),
         "enable_rerank": bool(_flag(flags, "enable_rerank", False)),
         "enable_crag": bool(_flag(flags, "enable_crag", settings.crag_enabled_by_default)),

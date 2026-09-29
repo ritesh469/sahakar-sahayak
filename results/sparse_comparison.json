@@ -1,0 +1,196 @@
+{
+  "date": "2026-09-30T00:08:30",
+  "collection": "coop_512",
+  "chunks": 1969,
+  "examples": [
+    {
+      "text": "प्रधानमंत्री फसल बीमा योजना",
+      "tfidf_old": [
+        "रध",
+        "नम",
+        "फसल",
+        "जन"
+      ],
+      "bm25_new": [
+        "प्रधानमंत्री",
+        "फसल",
+        "बीमा",
+        "योजना"
+      ]
+    },
+    {
+      "text": "प्रधानमंत्री किसान सम्मान निधि में किसानों को कितनी राशि मिलती है?",
+      "tfidf_old": [
+        "रध",
+        "नम",
+        "सम",
+        "तन",
+        "लत"
+      ],
+      "bm25_new": [
+        "प्रधानमंत्री",
+        "किसान",
+        "सम्मान",
+        "निधि",
+        "किसानों",
+        "कितनी",
+        "राशि",
+        "मिलती"
+      ]
+    },
+    {
+      "text": "सहकारी समितियों का पंजीकरण",
+      "tfidf_old": [
+        "सहक",
+        "सम",
+        "करण"
+      ],
+      "bm25_new": [
+        "सहकारी",
+        "समितियों",
+        "पंजीकरण"
+      ]
+    },
+    {
+      "text": "पुण्यश्लोक अहिल्यादेवी होळकर शेतकरी कर्जमुक्ती योजना",
+      "tfidf_old": [
+        "यश",
+        "अह",
+        "ळकर",
+        "तकर",
+        "कर",
+        "जम",
+        "जन"
+      ],
+      "bm25_new": [
+        "पुण्यश्लोक",
+        "अहिल्यादेवी",
+        "होळकर",
+        "शेतकरी",
+        "कर्जमुक्ती",
+        "योजना"
+      ]
+    },
+    {
+      "text": "शेतकऱ्यांना पीक विमा कसा मिळतो?",
+      "tfidf_old": [
+        "तकऱ",
+        "कस",
+        "ळत"
+      ],
+      "bm25_new": [
+        "शेतकऱ्यांना",
+        "पीक",
+        "विमा",
+        "कसा",
+        "मिळतो"
+      ]
+    },
+    {
+      "text": "PM-KISAN ka e-KYC kaise karein?",
+      "tfidf_old": [
+        "pm",
+        "kisan",
+        "ka",
+        "kyc",
+        "kaise",
+        "karein"
+      ],
+      "bm25_new": [
+        "pm",
+        "kisan",
+        "ka",
+        "e",
+        "kyc",
+        "kaise",
+        "karein"
+      ]
+    },
+    {
+      "text": "Multi-State Co-operative Societies Act, 2002",
+      "tfidf_old": [
+        "multi",
+        "state",
+        "operative",
+        "societies",
+        "act",
+        "2002"
+      ],
+      "bm25_new": [
+        "multi",
+        "state",
+        "co",
+        "operative",
+        "societies",
+        "act",
+        "2002"
+      ]
+    }
+  ],
+  "devanagari_tokenization": {
+    "all": {
+      "word_types": 16609,
+      "types_intact_pct": 5.2,
+      "types_split_pct": 63.3,
+      "types_dropped_pct": 31.5,
+      "word_occurrences": 157646,
+      "occurrences_intact_pct": 5.9,
+      "occurrences_split_pct": 48.0,
+      "occurrences_dropped_pct": 46.1
+    },
+    "en": {
+      "word_types": 100,
+      "types_intact_pct": 9.0,
+      "types_split_pct": 40.0,
+      "types_dropped_pct": 51.0,
+      "word_occurrences": 135,
+      "occurrences_intact_pct": 11.1,
+      "occurrences_split_pct": 31.9,
+      "occurrences_dropped_pct": 57.0
+    },
+    "en+hi": {
+      "word_types": 3408,
+      "types_intact_pct": 12.8,
+      "types_split_pct": 57.8,
+      "types_dropped_pct": 29.4,
+      "word_occurrences": 26137,
+      "occurrences_intact_pct": 13.3,
+      "occurrences_split_pct": 36.0,
+      "occurrences_dropped_pct": 50.7
+    },
+    "hi": {
+      "word_types": 3331,
+      "types_intact_pct": 6.6,
+      "types_split_pct": 55.5,
+      "types_dropped_pct": 37.9,
+      "word_occurrences": 22029,
+      "occurrences_intact_pct": 10.6,
+      "occurrences_split_pct": 36.5,
+      "occurrences_dropped_pct": 53.0
+    },
+    "mr": {
+      "word_types": 10905,
+      "types_intact_pct": 3.1,
+      "types_split_pct": 64.6,
+      "types_dropped_pct": 32.3,
+      "word_occurrences": 109345,
+      "occurrences_intact_pct": 3.2,
+      "occurrences_split_pct": 53.2,
+      "occurrences_dropped_pct": 43.6
+    }
+  },
+  "latency": {
+    "old_tfidf_rebuild_per_query_ms": {
+      "mean": 846.0,
+      "median": 779.4
+    },
+    "old_chunks_indexed": 1969,
+    "new_bm25_one_time_build_ms": 1038.2,
+    "new_bm25_cached_query_ms": {
+      "mean": 6.3,
+      "median": 6.1
+    },
+    "new_chunks_indexed": 1969,
+    "queries": 30
+  }
+}

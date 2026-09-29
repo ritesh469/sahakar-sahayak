@@ -85,6 +85,8 @@ class Settings(BaseSettings):
     hyde_enabled_by_default: bool = False
     hybrid_search_enabled: bool = True
     rrf_k: int = 60
+    # Default retrieval (P8): dense | bm25 | tfidf | hybrid (= dense + BM25 fused with RRF)
+    search_mode: str = "hybrid"
     reranker_backend: str = "local"
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
     voyage_api_key: str = ""

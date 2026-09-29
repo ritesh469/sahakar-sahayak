@@ -61,6 +61,9 @@ dependencies = [
     # Pinned as direct deps so uv pulls CUDA wheels (see [tool.uv.sources])
     "torch>=2.12,<2.13",
     "torchvision>=0.27,<0.28",
+
+    # Sparse retrieval: real BM25 (P8)
+    "rank-bm25>=0.2.2",
 ]
 
 [project.optional-dependencies]
