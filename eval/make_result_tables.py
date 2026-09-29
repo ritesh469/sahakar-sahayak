@@ -1,6 +1,7 @@
 """P13: experiment tables for the paper, built only from results/summary.csv and results/raw/*.csv.
 
 Writes (a table is skipped, with a message, while its runs are missing):
+  results/tokenizer_results.csv       P8     old TF-IDF analyzer on Devanagari words (from sparse_comparison.json)
   results/chunking_results.csv        Exp 1  chunk size 256 / 512 / 1024 (hybrid + rerank)
   results/retrieval_results.csv       Exp 2  bm25 / tfidf / dense / hybrid (+ dense and hybrid with rerank)
   results/script_match_results.csv    Exp 2  same split by "is the answer document in the question's script?"
@@ -151,6 +152,20 @@ def chunking(summ: dict) -> list[dict]:
             **pick(r, MODEL_COLS),
         })
     return out
+
+
+def tokenizer() -> list[dict]:
+    """Old TF-IDF analyzer on Devanagari words (scripts/compare_sparse.py, P8) as a table."""
+    path = RESULTS / "sparse_comparison.json"
+    if not path.exists():
+        return []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return [{"date": data["date"], "collection": data["collection"], "chunks": data["chunks"],
+             "document_language": lang, **stats,
+             "old_tfidf_query_ms_mean": data["latency"]["old_tfidf_rebuild_per_query_ms"]["mean"],
+             "new_bm25_query_ms_mean": data["latency"]["new_bm25_cached_query_ms"]["mean"],
+             "latency_queries": data["latency"]["queries"]}
+            for lang, stats in data["devanagari_tokenization"].items()]
 
 
 RETRIEVAL_CONFIGS = ["exp2_tfidf", "exp2_bm25", "exp2_dense", "exp2_hybrid",
@@ -327,6 +342,7 @@ def main() -> int:
 
     summ = load_summary(Path(args.summary))
     match = load_script_match(Path(args.questions), Path(args.sources))
+    write("tokenizer_results.csv", tokenizer())
     write("chunking_results.csv", chunking(summ))
     write("retrieval_results.csv", retrieval(summ))
     write("script_match_results.csv", script_match(summ, match))

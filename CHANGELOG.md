@@ -933,3 +933,36 @@ hybrid / RRF / reranker / recall@k / precision@k / MRR / faithfulness / hallucin
 over-refusal / prompt injection / spotlighting / HyDE / CRAG / Self-RAG / sign test ki aasaan
 definitions, (4) 15 viva sawaal + chhote jawab, sirf is project ke code aur `results/*.csv` ke numbers
 se. Jin jawabon ko Exp 3–6 ke numbers chahiye, wahan "(LLM runs ke baad)" likha hai.
+
+---
+
+## P17 (draft) — Paper + kal ke LLM runs ki taiyari (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** `paper/paper.md` ka draft likha — saare 15 sections (Abstract se
+References tak). Har number `results/*.csv` se copy kiya aur table ke neeche file ka naam hai;
+dataset stats sirf `data/sources.csv`, `results/ingestion_*.json`, `eval/coop_questions.yaml` se.
+Graphs `results/figures/` se embed. Jo experiments LLM ke bina nahi chal sakte (Exp 3 answers,
+Exp 4, 5, 6, guardrails) unki jagah **[PENDING]** + kaunsi CSV se bharna hai. Discussion mein:
+TF-IDF Devanagari tokenization, BM25 fix ka asar (Marathi/English mein haan, Hindi mein nahi — toota
+text layer), hybrid ka cross-lingual nuksaan, English-only guardrail components; Self-RAG refusal
+bias Exp 6 ke baad.
+
+- **References:** sirf verified — 8 arXiv papers (RAG, bge-m3, HyDE, CRAG, Self-RAG, Ragas,
+  Spotlighting, Docling; titles arXiv API se check), BM25 (Robertson & Zaragoza 2009, DOI) aur RRF
+  (Cormack et al. SIGIR 2009) search se check, MIRACL (title check kiya — yaad wala title galat tha),
+  software links (llm-guard, rank_bm25, bge-reranker-v2-m3) khol ke check. Indian-language RAG /
+  scheme chatbot papers ke liye **[CITATION NEEDED]** — fake reference nahi banaya. SIH 2026
+  problem statement 26088 motivation ke roop mein (URL user ko bharna hai).
+- `eval/make_result_tables.py`: naya `results/tokenizer_results.csv` (`sparse_comparison.json` se),
+  taaki paper ke tokenizer numbers bhi CSV se aayein.
+- `scripts/run_llm_experiments.{ps1,sh}` (naya): Exp 3 + Exp 6 (6 configs) ek command mein, phir
+  tables + graphs.
+
+### Kal (LLM key milne ke baad) ka kaam
+
+1. `.env` mein key + `LLM_PROVIDER` / `LLM_MODEL_ANSWER` / `LLM_MODEL_GRADER` (user khud likhega).
+2. Ek test query (`scripts/smoke_test.py`).
+3. `scripts/run_llm_experiments.ps1` (Exp 3, 4, 5, 6 + tables + graphs).
+4. API chala ke `eval/run_security_test.py` (P14).
+5. Paper ke [PENDING] sections, VIVA_NOTES ke "(LLM runs ke baad)" numbers, P18 final check
+   (tests + app + 3 demo sawaal), final commit.

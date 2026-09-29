@@ -1,0 +1,6 @@
+﻿date,collection,chunks,document_language,word_types,types_intact_pct,types_split_pct,types_dropped_pct,word_occurrences,occurrences_intact_pct,occurrences_split_pct,occurrences_dropped_pct,old_tfidf_query_ms_mean,new_bm25_query_ms_mean,latency_queries
+2026-09-30T00:08:30,coop_512,1969,all,16609,5.2,63.3,31.5,157646,5.9,48.0,46.1,846.0,6.3,30
+2026-09-30T00:08:30,coop_512,1969,en,100,9.0,40.0,51.0,135,11.1,31.9,57.0,846.0,6.3,30
+2026-09-30T00:08:30,coop_512,1969,en+hi,3408,12.8,57.8,29.4,26137,13.3,36.0,50.7,846.0,6.3,30
+2026-09-30T00:08:30,coop_512,1969,hi,3331,6.6,55.5,37.9,22029,10.6,36.5,53.0,846.0,6.3,30
+2026-09-30T00:08:30,coop_512,1969,mr,10905,3.1,64.6,32.3,109345,3.2,53.2,43.6,846.0,6.3,30
