@@ -906,3 +906,19 @@ baad isi command se ban jaayenge.
   ke liye; koi number haath se nahi).
 - `tests/test_make_plots.py` (2 tests): nakli CSVs se saare 9 graph bante hain (kal wale panels bhi);
   CSV na ho to skip. Layout (labels overlap) screenshots dekh ke theek kiya.
+
+---
+
+## P18 (part 1) — README + demo script (2026-09-30) — final check LLM runs ke baad
+
+**Kya hua (simple Hinglish mein):** Purana K8s README aur report `docs/` mein rakhe
+(`docs/README_original.md`, `docs/PROJECT_REPORT_original.md`), aur naya `README.md` likha: project
+kya hai, mermaid architecture diagram, tech stack, data (numbers `data/sources.csv` aur
+`results/ingestion_*.json` se), Windows + Mac/Linux setup, ingestion, app chalana, experiments,
+ab tak ke results (sirf `results/*.csv` se), limitations. `docs/DEMO_SCRIPT.md`: 6 demo sawaal
+(EN, HI, MR, Hinglish, unanswerable, Hinglish injection) — P7 smoke test ke checked sawaal —
+expected behaviour, kya dikhana hai, aur demo ke waqt aane wali dikkaton ka hal.
+
+- `.env.example`: OpenAI ke liye commented settings (answer `gpt-5.4-mini`, grader/Ragas judge
+  `gpt-4.1-mini` — judge non-reasoning hona chahiye).
+- Baaki (P18 step 3): poora test + app start + 3 demo sawaal — LLM runs ke baad.
