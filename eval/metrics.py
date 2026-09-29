@@ -91,12 +91,38 @@ def _norm(text: str) -> str:
     return " ".join(text.lower().split())
 
 
+# Models do not always copy the fixed sentence: gpt-4.1-mini writes Hindi/Marathi refusals in its
+# own words ("उपलब्ध दस्तावेज़ों में हेल्पलाइन नंबर की जानकारी नहीं मिली।"). A refusal opens the
+# answer, so these "not in the documents" phrases are looked for in the first sentence only; an
+# answer that states facts first and adds a caveat later stays a real answer.
+_PARAPHRASED_NO_INFO = [re.compile(p) for p in (
+    r"\bcould ?n[o']?t find\b",
+    r"\b(do|does|did) not (specify|mention|contain|provide|include|state|say|give|list)\b",
+    r"\b(is|are|was|were) not (mentioned|specified|provided|available|given|stated|included|found)\b",
+    r"\bno (information|details|mention)\b",
+    r"जानकारी नहीं", r"उल्लेख नहीं", r"नहीं मिल[ीा]", r"नहीं (दी|दिया) गय[ीा]", r"नहीं बताया गया",
+    r"उपलब्ध नहीं",
+    r"माहिती (दिलेली )?नाही", r"दिलेल[ीाे]\s*नाही", r"आढळल[ीाे] नाही", r"उल्लेख नाही", r"नमूद (केलेल[ीाे] )?नाही",
+    r"उपलब्ध नाही", r"कोणतीही माहिती",
+    r"\b(jaa?nkari|suchna|information|details?)\b[^.?!]*\bnahi\b", r"\bnahi (mili|mila)\b",
+)]
+_FIRST_SENTENCE = re.compile(r"^(.+?)(?:[.?!।](?:\s|$)|\n|$)", re.S)
+
+
+def _first_sentence(answer: str) -> str:
+    m = _FIRST_SENTENCE.match(answer.strip())
+    return _norm(m.group(1)) if m else ""
+
+
 def refusal_type(answer: str) -> str | None:
     """'no_info' (context lacks the answer), 'out_of_domain', or None (a real answer)."""
     a = _norm(answer)
     if any(_norm(p) in a for p in _OOD_PHRASES):
         return "out_of_domain"
     if any(_norm(p) in a for p in _NO_INFO_PHRASES):
+        return "no_info"
+    first = _first_sentence(answer)
+    if any(p.search(first) for p in _PARAPHRASED_NO_INFO):
         return "no_info"
     return None
 

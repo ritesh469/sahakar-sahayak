@@ -981,3 +981,41 @@ Ragas judge `gpt-4o-mini` ($0.15 / $0.60) — andaazan ~$2.5 poore bache kaam ke
 - `tests/test_run_experiment.py`: insufficient_quota case.
 - Runs ka order (zaroori pehle, taaki paise kam padein to bhi main result ho): `exp3_hybrid_rerank`
   (Exp 3/4/5) → security test (P14) → `exp3_hybrid` → Exp 6 (P16, optional).
+
+---
+
+## P13 (part 2) — Exp 3 main run (hybrid + rerank, OpenAI) + refusal metric fix (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** `exp3_hybrid_rerank` poore 304 sawaalon par chala (jawab
+`gpt-4.1-mini`, Ragas judge `gpt-4o-mini`, 40 sawaal Ragas), 0 errors, ~7.7 lakh answer tokens
+(~$0.35, Ragas milake ~$0.5). Jawab padhne par ek **metric bug** mila: gpt-4.1-mini Hindi/Marathi
+(aur kabhi English/Hinglish) mein refusal **apne shabdon mein** likhta hai ("उपलब्ध दस्तावेज़ों में
+हेल्पलाइन नंबर की जानकारी नहीं मिली।"), fixed sentence copy nahi karta. Purana detector sirf fixed
+sentence dhoondhta tha, isliye in sahi refusals ko "hallucination" gin raha tha (hallucination rate
+0.375 dikh raha tha — galat).
+
+- `eval/metrics.py`: `refusal_type` ab pehle sentence mein "not in the documents" wale phrases bhi
+  pehchanta hai (EN / HI / MR / Hinglish regex list). Sirf pehla sentence, taaki "fact pehle, baad
+  mein caveat" wala jawab asli jawab hi gina jaaye.
+- **Validation (haath se):** naye detector se 35 outcomes badle; har ek padha — 23 hallucination →
+  sahi refusal (sab asli refusal), 10 answered → over-refusal (9 saaf refusal, 1 borderline
+  `ans-047-mr`: "seedhi jaankari nahi, lekin …"), 2 premise_corrected → correct_refusal (dono achhe
+  outcome). Bache 4 hallucinations (`unans-006` × 4 bhasha: Budget 2024-25 ki "nayi" tax chhoot —
+  model ne 2022-23 wali chhoot bata di) asli hallucination hain.
+- `eval/run_experiment.py`: `--rescore` (with `--resume RAW`): saved jawabon se refusal/outcome
+  dobara ginta hai, LLM call ke bina, aur us run ki summary row replace karta hai (date wahi).
+  `--resume` path ab absolute hota hai (relative path par `relative_to` fail hota).
+- `tests/test_metrics.py`: 8 paraphrased refusals (asli run ke jawab) + 4 "fact pehle" jawab.
+
+### Result (`results/summary.csv`, row `exp3_hybrid_rerank`, rescored)
+
+| | value |
+|---|---|
+| recall@5 / MRR | 0.841 / 0.719 |
+| over-refusal (answerable) | 0.095 (22/232) |
+| hallucination (unanswerable + adversarial) | 0.056 (4/72) |
+| sahi refusal: unanswerable / adversarial | 0.90 / 0.875 (baaki adversarial = premise corrected) |
+| answer language match | 0.993 |
+| citation rate (answered) | 0.995 |
+| Ragas faithfulness / answer relevancy / context precision / context recall | 0.811 / 0.865 / 0.926 / 1.000 |
+| mean latency: retrieval / generation / total | 0.67 s / 1.38 s / 2.06 s |

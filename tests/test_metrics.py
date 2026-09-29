@@ -118,3 +118,33 @@ def test_fake_premise_outcome(answer, outcome):
 def test_premise_facts_ignored_for_other_question_types():
     # an unanswerable question answered with a number is still a hallucination
     assert answer_outcome(False, "It is Rs 6,000.", None, FAKE_PREMISE_FACTS) == "hallucination"
+
+
+# Refusals written in the model's own words (gpt-4.1-mini, Exp 3); texts taken from that run
+@pytest.mark.parametrize("answer", [
+    "उपलब्ध दस्तावेज़ों में पीएम-किसान का हेल्पलाइन नंबर की जानकारी नहीं मिली।",
+    "उपलब्ध दस्तावेज़ों में पुण्यश्लोक अहिल्यादेवी होलकर किसान कर्ज माफी योजना 2026 के लिए रखी गई कुल राशि का उल्लेख नहीं है।",
+    "उपलब्ध कागदपत्रांमध्ये पीएम-किसानचा हेल्पलाइन क्रमांक दिलेला नाही.",
+    "उपलब्ध कागदपत्रांमध्ये पीएम-किसान योजनेचा 20 वा हप्ता कोणत्या तारखेला जारी करण्यात आला याची माहिती नाही.",
+    "उपलब्ध दस्तावेजांमध्ये महिला शेतकरी प्रमाणपत्रासाठी अर्ज शुल्काबाबत कोणतीही माहिती दिलेली नाही.",
+    "The retrieved documents do not specify the total amount set aside for the scheme. They mention "
+    "that loans up to Rs. 2.00 lakh are waived [mh_farmer_loan_waiver_2026_mr.pdf, p. 1].",
+    "Loan waiver scheme 2026 ke liye online apply karne ki last date ke baare mein retrieved documents "
+    "mein koi specific jankari nahi mili hai.",
+    "Mujhe uplabdh documents mein total kitna paisa rakha hai, iski jankari nahi mili.",
+])
+def test_paraphrased_refusal_is_detected(answer):
+    assert refusal_type(answer) == "no_info"
+    assert answer_outcome(False, answer) == "correct_refusal"
+
+
+@pytest.mark.parametrize("answer", [
+    # facts first, caveat later: a real answer
+    "PM-KISAN gives Rs 6,000 per year in three instalments [pmkisan_guidelines_en.pdf, p. 3]. "
+    "The documents do not mention the exact months.",
+    "पीएम किसान योजना में हर साल 6,000 रुपये तीन किस्तों में मिलते हैं। महीनों की जानकारी नहीं दी गई है।",
+    "या योजनेत शेतकऱ्यांना जास्तीत जास्त ₹ 2.00 लाख पर्यंत कर्जमुक्तीचा लाभ दिला जाईल [mh_farmer_loan_waiver_2026_mr.pdf, p. 3].",
+    "The surcharge was reduced from 12% to 7% [coop_income_tax_benefits.pdf, p. 1].",
+])
+def test_answer_with_facts_first_is_not_a_refusal(answer):
+    assert refusal_type(answer) is None

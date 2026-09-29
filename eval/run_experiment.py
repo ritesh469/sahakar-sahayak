@@ -256,13 +256,16 @@ def summarize(rows: list[dict], cfg: dict, raw_path: Path, started: str) -> dict
     return summary
 
 
-def append_summary(summary: dict, path: Path) -> None:
+def append_summary(summary: dict, path: Path, replace: bool = False) -> None:
+    """Add a summary row; replace=True first drops rows of the same raw file (rescore)."""
     rows, fields = [], list(summary)
     if path.exists():
         with path.open(encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
             fields = list(dict.fromkeys([*(reader.fieldnames or []), *summary]))
+    if replace:
+        rows = [r for r in rows if r.get("raw_file") != summary["raw_file"]]
     rows.append(summary)
     with path.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields, lineterminator="\n")
@@ -282,6 +285,32 @@ def write_raw(rows: list[dict], path: Path) -> None:
         w.writerows(rows)
 
 
+def rescore(rows: list[dict], goldens: list, cfg: dict, raw_path: Path, summary_path: Path) -> int:
+    """Recompute the answer-derived columns after a metric change (e.g. refusal detection),
+    keeping answers, retrieval, latency and Ragas scores; the summary keeps the run's date."""
+    by_id = {g.id: g for g in goldens}
+    changed = 0
+    for r in rows:
+        g = by_id.get(r["id"])
+        if g is None or r.get("error") or not cfg["generate"]:
+            continue
+        answer = r.get("answer") or ""
+        new = {"refusal_type": refusal_type(answer) or "",
+               "outcome": answer_outcome(g.should_answer, answer, g.adversarial_kind, g.correct_facts)}
+        changed += any(r.get(k, "") != v for k, v in new.items())
+        r.update(new)
+    write_raw(rows, raw_path)
+    started = ""
+    if summary_path.exists():
+        with summary_path.open(encoding="utf-8-sig", newline="") as f:
+            rel = raw_path.resolve().relative_to(ROOT).as_posix()
+            started = next((s["date"] for s in csv.DictReader(f) if s.get("raw_file") == rel), "")
+    summary = summarize(read_raw(raw_path), cfg, raw_path.resolve(), started or datetime.now().isoformat(timespec="seconds"))
+    append_summary(summary, summary_path, replace=True)
+    print(f"rescored {raw_path.name}: {changed} row(s) changed; summary row replaced")
+    return 0
+
+
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
     ap = argparse.ArgumentParser(description="Run one experiment config over the eval questions")
@@ -290,8 +319,13 @@ def main() -> int:
     ap.add_argument("--no-ragas", action="store_true", help="skip Ragas even if the config enables it")
     ap.add_argument("--limit", type=int, default=0, help="only the first N questions (dry run)")
     ap.add_argument("--resume", default=None, help="continue this raw CSV (skips finished ids)")
+    ap.add_argument("--rescore", action="store_true",
+                    help="with --resume: recompute refusal/outcome from the saved answers (no LLM "
+                         "calls) and replace that run's summary row")
     ap.add_argument("--summary", default=str(ROOT / "results" / "summary.csv"))
     args = ap.parse_args()
+    if args.rescore and not args.resume:
+        ap.error("--rescore needs --resume <raw csv>")
 
     cfg = load_config(args.config)
     from app.config import settings
@@ -315,7 +349,7 @@ def main() -> int:
     started = datetime.now().isoformat(timespec="seconds")
     raw_dir = ROOT / "results" / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    raw_path = Path(args.resume) if args.resume else raw_dir / f"{cfg['name']}_{datetime.now():%Y%m%d_%H%M%S}.csv"
+    raw_path = Path(args.resume).resolve() if args.resume else raw_dir / f"{cfg['name']}_{datetime.now():%Y%m%d_%H%M%S}.csv"
     rows = read_raw(raw_path) if raw_path.exists() else []
     done = {r["id"] for r in rows if not r.get("error")}
     rows = [r for r in rows if r["id"] in done]
@@ -323,6 +357,9 @@ def main() -> int:
     contexts = json.loads(ctx_path.read_text(encoding="utf-8")) if ctx_path.exists() else {}
     print(f"{cfg['name']}: {len(goldens)} questions -> {raw_path.relative_to(ROOT)} "
           f"({len(done)} already done) | collection coop_{settings.chunk_size}")
+
+    if args.rescore:
+        return rescore(read_raw(raw_path), goldens, cfg, raw_path, Path(args.summary))
 
     # Warm-up: load bge-m3 / the reranker / the sparse index before timing, so the first
     # question's latency does not include model loading
