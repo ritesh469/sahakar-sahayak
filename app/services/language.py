@@ -21,17 +21,28 @@ _HINDI_WORDS = {
 _MARATHI_WORDS = {
     "आहे", "आहेत", "काय", "कोणती", "कोणते", "कोणता", "किती", "कसे", "कशी", "कसा", "केव्हा", "कुठे",
     "आणि", "मध्ये", "साठी", "मिळते", "मिळतो", "मिळतात", "करावा", "करावे", "नाही", "यांना", "ला",
+    "कोण", "कोणाला", "कोणत्या", "असतात", "असते", "असतो", "दिली", "दिले", "येते", "येतो", "येतात",
+    "मिळेल", "करावी", "द्यावे",
 }
-# Romanised Hindi words that are rare in English text
+# Marathi glues case endings to the noun (समितीचे, योजनेचा, कर्जाची, संस्थेच्या, शेतकऱ्यांना);
+# Hindi writes them as separate words (समिति के). नीचे ("below") is Hindi despite the ending.
+_MARATHI_SUFFIXES = ("ांना", "ाचा", "ाची", "ाचे", "ेचा", "ेची", "ेचे", "ीचा", "ीची", "ीचे", "च्या")
+_HINDI_EXCEPTIONS = {"नीचे"}
+# Romanised Hindi words that are rare in English text. Not counted: "yojana", "kisan",
+# "sahkari" - they are part of official scheme names that English questions use too
+# ("PM Kisan Maan-Dhan Yojana"), so they say nothing about the question's language.
 _HINGLISH_WORDS = {
     "hai", "hain", "kya", "kaun", "kaunsi", "kitna", "kitni", "kitne", "kaise", "kab", "kahan",
     "mein", "me", "ka", "ki", "ke", "ko", "se", "aur", "liye", "milta", "milti", "milte", "hota",
     "hoti", "hote", "nahi", "nahin", "kaha", "batao", "bataiye", "chahiye", "sakta", "sakte",
-    "wale", "wala", "yojana", "sarkar", "kisan", "kisko", "kiske", "paisa", "paise", "karna",
-    "karein", "karu", "raha", "rahi", "gaya", "tak", "bhi", "koi", "kuch", "jaankari", "sahkari",
+    "wale", "wala", "sarkar", "kisko", "kiske", "paisa", "paise", "karna",
+    "karein", "karu", "raha", "rahi", "gaya", "tak", "bhi", "koi", "kuch", "jaankari",
 }
 
 _WORD = re.compile(r"[\w\u0900-\u097f]+")
+
+# Citations such as [pmkisan_guidelines_en.pdf, p. 3] are Latin text inside Hindi/Marathi answers
+_CITATION = re.compile(r"\[[^\]]*\]|【[^】]*】")
 
 
 def _is_devanagari(ch: str) -> bool:
@@ -39,6 +50,7 @@ def _is_devanagari(ch: str) -> bool:
 
 
 def detect_language(text: str) -> str:
+    text = _CITATION.sub(" ", text)
     letters = [c for c in text if c.isalpha() or _is_devanagari(c)]
     if not letters:
         return "en"
@@ -48,8 +60,7 @@ def detect_language(text: str) -> str:
     if dev_ratio >= 0.5:
         hi = sum(w in _HINDI_WORDS for w in words)
         mr = sum(w in _MARATHI_WORDS for w in words) + text.count("ळ")
-        # Marathi case endings glued to nouns: शेतकऱ्यांना, योजनेचा, कर्जाची
-        mr += sum(1 for w in words if w.endswith(("ांना", "ाचा", "ाची", "ाचे", "ेचा", "ेची", "ेचे")))
+        mr += sum(1 for w in words if w.endswith(_MARATHI_SUFFIXES) and w not in _HINDI_EXCEPTIONS)
         return "mr" if mr > hi else "hi"
 
     hinglish_hits = sum(w in _HINGLISH_WORDS for w in words)

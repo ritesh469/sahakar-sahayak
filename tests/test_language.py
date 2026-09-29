@@ -20,6 +20,14 @@ from app.services.language import detect_language
         ("PM Kisan mein kitna paisa milta hai?", "hinglish"),
         ("Sahkari samiti ka member kaun ban sakta hai?", "hinglish"),
         ("Grain storage yojana ke liye kya documents chahiye?", "hinglish"),
+        # P7 smoke test failures: scheme names are not Hinglish; Marathi without common words
+        ("What minimum pension does a subscriber get under PM Kisan Maan-Dhan Yojana, and from "
+         "what age?", "en"),
+        ("महिला शेतकरी सक्षमीकरण अधिनियमानुसार राज्य संनियंत्रण समितीचे अध्यक्ष कोण असतात?", "mr"),
+        ("बच्चों के लिए कौन सी योजना नीचे दी गई है?", "hi"),
+        # answers: the Latin citation must not turn a Devanagari answer into English
+        ("राज्य संनियंत्रण समिति (State Monitoring Committee) का अध्यक्ष मुख्य सचिव (Chief Secretary) "
+         "होता है [mh_women_farmer_act_2026_en.pdf, p. 7].", "hi"),
     ],
 )
 def test_detect_language(question, expected):

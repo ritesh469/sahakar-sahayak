@@ -35,8 +35,17 @@ def _get_pii_scanners() -> list[Any]:
     global _pii_scanners
     if _pii_scanners is not None:
         return _pii_scanners
+    from llm_guard.input_scanners.anonymize import DEFAULT_ENTITY_TYPES
     from llm_guard.output_scanners import Sensitive
-    _pii_scanners = [Sensitive(redact=True, threshold=settings.output_toxicity_threshold)]
+
+    # PERSON is the only NER-based (English model) entity in the defaults; the rest are patterns.
+    # On Devanagari it tags ordinary words: "किसान" and "महिला शेतकरी" became <PERSON> and the
+    # redacted question no longer matched the documents. Many schemes are also named after
+    # people (Ahilyadevi Holkar, Gopinath Munde). So PERSON is off unless explicitly enabled.
+    entity_types = [e for e in DEFAULT_ENTITY_TYPES
+                    if e != "PERSON" or settings.pii_redact_person_names]
+    _pii_scanners = [Sensitive(entity_types=entity_types, redact=True,
+                               threshold=settings.output_toxicity_threshold)]
     return _pii_scanners
 
 

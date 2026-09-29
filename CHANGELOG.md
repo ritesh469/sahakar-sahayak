@@ -386,3 +386,75 @@ sawaal hain, aur jawab ke neeche sources "filename, p. N" format mein aate hain.
   band hone ki wajah se screenshot se confirm nahi hua; format function `_format_source` wahi hai.
 - Pehli API query par llm-guard ~3 GB models download karta hai aur spaCy packages venv mein install
   karta hai (CLAUDE.md S10) — pehli query 10+ minute le sakti hai.
+
+---
+
+## P7 — Din 1 gate: smoke test (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** `scripts/smoke_test.py` bana. Ye 10 sawaal (2 EN, 2 HI, 2 MR,
+2 Hinglish, 1 unanswerable, 1 out-of-domain) seedha `rag_service` se chalata hai aur har sawaal ka
+jawab, sources (page ke saath), latency (retrieval + generation alag) print karta hai, aur check karta
+hai ki (a) sahi document top-5 mein aaya, (b) jawab sawaal ki language mein hai, (c) unanswerable/OOD
+par sahi fixed sentence aaya. Result `results/smoke_test.json` mein. Is test ne 3 bug pakde (neeche).
+
+Sawaal Claude ne documents padh ke chune (har expected answer chunk text mein dekha):
+surcharge 12%→7% (`coop_income_tax_benefits.pdf` p. 1), PM-KMY ₹3000/maah 60 saal ke baad
+(`pmkmy_faqs_en.pdf` p. 1), NCP 2025 "50 करोड़ लोग" (`ncp_2025_hi.pdf` p. 25 / en p. 23), अन्न भंडारण
+PACS infrastructure (`grain_storage_plan_sop_*`), कर्जमुक्ती ₹2 लाख (`mh_farmer_loan_waiver_2026_mr.pdf`
+p. 1/3), राज्य संनियंत्रण समिती अध्यक्ष = मुख्य सचिव (`mh_women_farmer_act_2026_*`), NCDC sugar mills
+₹1000 Cr (`ncdc_sugar_mills_scheme.pdf` p. 1), PM-KISAN e-KYC modes.
+
+### Result (dense + rerank, top 5, `coop_512`, gpt-oss-120b)
+
+| id | lang | answer lang | sahi doc rank | refusal | total s | |
+|---|---|---|---|---|---|---|
+| en1 | en | en | 1 | – | 43.7 (pehli query, model load) | OK |
+| en2 | en | en | 1 | – | 2.7 | OK |
+| hi1 | hi | hi | 1 (sirf English NCP) | – | 2.6 | OK |
+| hi2 | hi | hi | 1 | – | 2.6 | OK* |
+| mr1 | mr | mr | 1 | – | 25.2 | OK |
+| mr2 | mr | mr | 1 | – | 19.5 | OK |
+| hinglish1 | hinglish | hinglish | 1 | – | 25.3 | OK |
+| hinglish2 | hinglish | hinglish | 1 | – | 12.1 | OK |
+| unans1 | en | en | – | no_info | 26.7 | OK |
+| ood1 | hinglish | hinglish | – | out_of_domain | 22.4 | OK |
+
+**Sahi document top-5 mein nahi aaya: kisi mein nahi (10/10).** Par dhyan dene wali baatein:
+
+- *hi2: document sahi mila, par jawab mein "कॉइन-प्रोसेसिंग (coin processing) इकाइयाँ" jaisi galat
+  cheez aayi. English SOP mein "common processing units" hai; Hindi PDF ka text layer toota hai
+  (`कस्टम हायररंग`, 13% shabd kharab), aur LLM ne toote shabd ka ulta matlab nikaala. Ye
+  **hallucination from damaged text layer** hai — paper ki finding.
+- hi1: Hindi sawaal par top-5 mein sirf English NCP aaya, Hindi NCP (`ncp_2025_hi.pdf`, 22% toote shabd)
+  nahi. bge-m3 cross-lingual kaam karta hai, isliye jawab sahi hai; par Hindi document ka kharab text
+  layer uski ranking girata lagta hai (P13 language-wise analysis mein dekhna).
+- en1: citation `ncp_2025_en.pdf, p. 12` diya jabki fact `coop_income_tax_benefits.pdf, p. 1` mein hai
+  (dono top-5 mein) → citation precision P11 metric mein naapna.
+- Latency 2.6 s se 43 s: 20–25 s wale jawab Groq ki 8,000 tokens/min limit par SDK ke retry-wait hain
+  (CLAUDE.md "Groq free tier"). Pehli query mein bge-m3 + reranker load (~40 s).
+
+### Is test ne jo bug pakde (aur fix)
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| English sawaal (PM Kisan Maan-Dhan **Yojana**) ka jawab Hinglish mein | Detector "kisan", "yojana" ko Hinglish shabd ginta tha; ye scheme ke naam hain | `language.py`: yojana/kisan/sahkari Hinglish list se hataye |
+| Marathi sawaal (…समितीचे अध्यक्ष कोण असतात?) ka jawab Hindi mein | Koi Marathi pehchaan-shabd nahi mila → default "hi" | Marathi shabd (कोण, असतात, दिली…) + `-ीचे/-ीचा/-च्या` endings; `नीचे` exception |
+| Hindi jawab "en" detect | `[mh_…_en.pdf, p. 7]` citation ke Latin letters | Detection se pehle citations hatao |
+| **API path par Hindi/Marathi sawaal bigadte** (smoke test mein nahi dikhta, woh API bypass karta hai) | llm-guard PII scanner (English NER) ne "किसान" → `<PERSON><PERSON><PERSON>`, "महिला शेतकरी" → `<PERSON><PERSON><PERSON> <PERSON><PERSON>` kiya — 5 mein se 3 Devanagari sawaal | PERSON entity off (`PII_REDACT_PERSON_NAMES=false`); email/phone ab bhi redact (check kiya) |
+
+### Files
+
+- `scripts/smoke_test.py` (naya), `results/smoke_test.json` (naya).
+- `app/services/language.py`, `tests/test_language.py` (+4 regression tests).
+- `app/security/content_moderation.py`, `app/config.py`, `.env.example`: PII PERSON flag;
+  `tests/test_pii_redaction.py` (naya, 2 tests).
+- `eval/metrics.py` + `tests/test_metrics.py` (P11 ke liye pehle se likhe the; smoke test inka
+  `refusal_type` use karta hai, isliye isi commit mein).
+- `CLAUDE.md`: Known problem #14, S10 (llm-guard downloads), S11 (GPU memory), Groq limits.
+
+### Verify kiya
+
+- `pytest tests/` → sab pass (neeche commit se pehle ka run).
+- PII: 11 smoke/example sawaal redaction ke baad bilkul same; `ramesh.patil@example.com` / `9876543210`
+  → `<EMAIL_ADDRESS>` / `<PHONE_NUMBER>`.
+- API `/query` (guardrails ke saath) Marathi sawaal → sahi Marathi jawab + page wale sources.

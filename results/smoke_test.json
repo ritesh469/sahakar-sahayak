@@ -1,0 +1,419 @@
+{
+  "date": "2026-09-29T23:49:51",
+  "flags": {
+    "search_mode": "dense",
+    "enable_rerank": true,
+    "top_k": 5,
+    "enable_crag": false,
+    "enable_hyde": false,
+    "enable_self_reflective": false
+  },
+  "llm_answer": "openai/gpt-oss-120b",
+  "embedding_model": "BAAI/bge-m3",
+  "reranker_model": "BAAI/bge-reranker-v2-m3",
+  "collection": "coop_512",
+  "questions": [
+    {
+      "id": "en1",
+      "language": "en",
+      "type": "answerable",
+      "question": "By how much was the surcharge on cooperative societies reduced for income between 1 crore and 10 crore rupees?",
+      "expected": {
+        "coop_income_tax_benefits.pdf": 1
+      },
+      "sources": [
+        [
+          "coop_income_tax_benefits.pdf",
+          1
+        ],
+        [
+          "ncp_2025_en.pdf",
+          12
+        ],
+        [
+          "ncp_2025_hi.pdf",
+          13
+        ],
+        [
+          "coop_income_tax_benefits.pdf",
+          1
+        ],
+        [
+          "ncp_2025_en.pdf",
+          11
+        ]
+      ],
+      "expected_rank": 1,
+      "expected_page_in_top_k": true,
+      "answer": "The surcharge on cooperative societies for income between ₹1 crore and ₹10 crore was reduced from 12 % to 7 %, a decrease of 5 percentage points[ncp_2025_en.pdf, p. 12].",
+      "refusal": "",
+      "answer_language": "en",
+      "ok": true,
+      "retrieval_s": 40.46,
+      "generation_s": 3.26,
+      "total_s": 43.72
+    },
+    {
+      "id": "en2",
+      "language": "en",
+      "type": "answerable",
+      "question": "What minimum pension does a subscriber get under PM Kisan Maan-Dhan Yojana, and from what age?",
+      "expected": {
+        "pmkmy_faqs_en.pdf": 1,
+        "pmkmy_guidelines_en.pdf": 16
+      },
+      "sources": [
+        [
+          "pmkmy_guidelines_en.pdf",
+          1
+        ],
+        [
+          "pmkmy_guidelines_en.pdf",
+          1
+        ],
+        [
+          "pmkmy_faqs_en.pdf",
+          1
+        ],
+        [
+          "pmkmy_guidelines_en.pdf",
+          16
+        ],
+        [
+          "pmkmy_guidelines_en.pdf",
+          16
+        ]
+      ],
+      "expected_rank": 1,
+      "expected_page_in_top_k": true,
+      "answer": "The scheme provides a minimum assured pension of Rs 3000 per month, which begins when the subscriber reaches the age of 60 years[pmkmy_faqs_en.pdf, p. 1].",
+      "refusal": "",
+      "answer_language": "en",
+      "ok": true,
+      "retrieval_s": 1.1,
+      "generation_s": 1.62,
+      "total_s": 2.71
+    },
+    {
+      "id": "hi1",
+      "language": "hi",
+      "type": "answerable",
+      "question": "राष्ट्रीय सहकारिता नीति 2025 के अनुसार कितने करोड़ लोगों को सहकारी समितियों के दायरे में लाने का लक्ष्य है?",
+      "expected": {
+        "ncp_2025_hi.pdf": 25,
+        "ncp_2025_en.pdf": 23
+      },
+      "sources": [
+        [
+          "ncp_2025_en.pdf",
+          9
+        ],
+        [
+          "ncp_2025_en.pdf",
+          23
+        ],
+        [
+          "ncp_2025_en.pdf",
+          11
+        ],
+        [
+          "ncp_2025_en.pdf",
+          12
+        ],
+        [
+          "ncp_2025_en.pdf",
+          21
+        ]
+      ],
+      "expected_rank": 1,
+      "expected_page_in_top_k": true,
+      "answer": "राष्ट्रीय सहकारिता नीति 2025 के तहत अगले 10 वर्षों में कम से कम 50 करोड़ लोगों को सहकारी समितियों के दायरे में लाने का लक्ष्य निर्धारित किया गया है[ncp_2025_en.pdf, p. 23].",
+      "refusal": "",
+      "answer_language": "hi",
+      "ok": true,
+      "retrieval_s": 0.98,
+      "generation_s": 1.61,
+      "total_s": 2.6
+    },
+    {
+      "id": "hi2",
+      "language": "hi",
+      "type": "answerable",
+      "question": "अन्न भंडारण योजना के तहत पैक्स स्तर पर कौन-कौन सी कृषि अवसंरचना बनाई जाती है?",
+      "expected": {
+        "grain_storage_plan_sop_hi.pdf": null,
+        "grain_storage_plan_sop_en.pdf": 7
+      },
+      "sources": [
+        [
+          "grain_storage_plan_sop_hi.pdf",
+          6
+        ],
+        [
+          "grain_storage_plan_sop_hi.pdf",
+          6
+        ],
+        [
+          "grain_storage_plan_sop_en.pdf",
+          6
+        ],
+        [
+          "grain_storage_plan_sop_hi.pdf",
+          23
+        ],
+        [
+          "grain_storage_plan_sop_hi.pdf",
+          7
+        ]
+      ],
+      "expected_rank": 1,
+      "expected_page_in_top_k": true,
+      "answer": "अन्न भंडारण योजना के तहत पैक्स (PACS) स्तर पर निम्नलिखित कृषि‑अवसंरचना का निर्माण किया जाता है:\n\n- खाद्यान्न भंडारण इकाइयाँ  \n- कृषि‑उत्पादन (procurement) केंद्र  \n- प्रसंस्करण (processing) इकाइयाँ  \n- कॉइन‑प्रोसेसिंग (coin processing) इकाइयाँ  \n- अन्य सहकारी‑केंद्र एवं संबंधित सुविधाएँ[grain_storage_plan_sop_hi.pdf, p.6][grain_storage_plan_sop_hi.pdf, p.7]",
+      "refusal": "",
+      "answer_language": "hi",
+      "ok": true,
+      "retrieval_s": 0.98,
+      "generation_s": 1.58,
+      "total_s": 2.56
+    },
+    {
+      "id": "mr1",
+      "language": "mr",
+      "type": "answerable",
+      "question": "पुण्यश्लोक अहिल्यादेवी होळकर शेतकरी कर्जमुक्ती योजनेत किती रकमेपर्यंत कर्जमुक्ती दिली जाते?",
+      "expected": {
+        "mh_farmer_loan_waiver_2026_mr.pdf": 1
+      },
+      "sources": [
+        [
+          "mh_farmer_loan_waiver_2026_mr.pdf",
+          1
+        ],
+        [
+          "mh_farmer_loan_waiver_2026_mr.pdf",
+          2
+        ],
+        [
+          "mh_farmer_loan_waiver_2026_mr.pdf",
+          2
+        ],
+        [
+          "mh_farmer_loan_waiver_2026_mr.pdf",
+          3
+        ],
+        [
+          "mh_farmer_loan_waiver_2026_mr.pdf",
+          3
+        ]
+      ],
+      "expected_rank": 1,
+      "expected_page_in_top_k": true,
+      "answer": "या योजनेत शेतकऱ्यांना जास्तीत जास्त ₹ 2.00 लाख पर्यंत कर्जमुक्तीचा लाभ दिला जाईल [ mh_farmer_loan_waiver_2026_mr.pdf, p. 3 ].",
+      "refusal": "",
+      "answer_language": "mr",
+      "ok": true,
+      "retrieval_s": 1.0,
+      "generation_s": 24.19,
+      "total_s": 25.19
+    },
+    {
+      "id": "mr2",
+      "language": "mr",
+      "type": "answerable",
+      "question": "महिला शेतकरी सक्षमीकरण अधिनियमानुसार राज्य संनियंत्रण समितीचे अध्यक्ष कोण असतात?",
+      "expected": {
+        "mh_women_farmer_act_2026_mr.pdf": 8,
+        "mh_women_farmer_act_2026_en.pdf": 7
+      },
+      "sources": [
+        [
+          "mh_women_farmer_act_2026_mr.pdf",
+          9
+        ],
+        [
+          "mh_women_farmer_act_2026_en.pdf",
+          7
+        ],
+        [
+          "mh_women_farmer_act_2026_mr.pdf",
+          7
+        ],
+        [
+          "mh_women_farmer_act_2026_en.pdf",
+          8
+        ],
+        [
+          "mh_women_farmer_act_2026_en.pdf",
+          6
+        ]
+      ],
+      "expected_rank": 1,
+      "expected_page_in_top_k": true,
+      "answer": "राज्य संनियंत्रण समितीचे अध्यक्ष मुख्य सचिव (Chief Secretary) असतात. [mh_women_farmer_act_2026_en.pdf, p. 7]",
+      "refusal": "",
+      "answer_language": "mr",
+      "ok": true,
+      "retrieval_s": 1.1,
+      "generation_s": 18.36,
+      "total_s": 19.45
+    },
+    {
+      "id": "hinglish1",
+      "language": "hinglish",
+      "type": "answerable",
+      "question": "Cooperative sugar mills wali NCDC scheme ka total outlay kitna hai aur kin saalon mein milega?",
+      "expected": {
+        "ncdc_sugar_mills_scheme.pdf": 1
+      },
+      "sources": [
+        [
+          "ncdc_sugar_mills_scheme.pdf",
+          1
+        ],
+        [
+          "ncp_2025_en.pdf",
+          12
+        ],
+        [
+          "grain_storage_plan_sop_hi.pdf",
+          7
+        ],
+        [
+          "grain_storage_plan_sop_en.pdf",
+          35
+        ],
+        [
+          "grain_storage_plan_sop_en.pdf",
+          7
+        ]
+      ],
+      "expected_rank": 1,
+      "expected_page_in_top_k": true,
+      "answer": "Scheme ka total outlay ₹1000 crore hai, jismein ₹500 crore pehle financial year (FY 2022‑2023) aur baaki ₹500 crore agle financial year (FY 2023‑2024) mein release kiye jayenge [ncdc_sugar_mills_scheme.pdf, p. 1].",
+      "refusal": "",
+      "answer_language": "hinglish",
+      "ok": true,
+      "retrieval_s": 1.24,
+      "generation_s": 24.05,
+      "total_s": 25.3
+    },
+    {
+      "id": "hinglish2",
+      "language": "hinglish",
+      "type": "answerable",
+      "question": "PM-KISAN ka e-KYC kaunse tareekon se kar sakte hain?",
+      "expected": {
+        "pmkisan_ekyc_note_en.pdf": 1,
+        "pmkisan_ekyc_note_hi.pdf": 1,
+        "pmkisan_ekyc_note_mr.pdf": 1
+      },
+      "sources": [
+        [
+          "pmkisan_ekyc_note_mr.pdf",
+          1
+        ],
+        [
+          "pmkisan_ekyc_note_mr.pdf",
+          2
+        ],
+        [
+          "pmkisan_ekyc_note_en.pdf",
+          1
+        ],
+        [
+          "pmkisan_ekyc_note_mr.pdf",
+          2
+        ],
+        [
+          "pmkisan_ekyc_note_en.pdf",
+          1
+        ]
+      ],
+      "expected_rank": 1,
+      "expected_page_in_top_k": true,
+      "answer": "PM‑KISAN scheme ke liye farmers teen tareekon se e‑KYC kar sakte hain:  \n- OTP based e‑KYC, jo PM‑KISAN portal aur mobile app par uplabdh hai [pmkisan_ekyc_note_en.pdf, p. 1]  \n- Biometric based e‑KYC, jo Common Service Centres (CSCs) aur State Seva Kendra (SSKs) par milta hai [pmkisan_ekyc_note_en.pdf, p. 1]  \n- Face authentication based e‑KYC, jo PM‑KISAN mobile app par upyog ki ja sakti hai [pmkisan_ekyc_note_en.pdf, p. 1]",
+      "refusal": "",
+      "answer_language": "hinglish",
+      "ok": true,
+      "retrieval_s": 1.1,
+      "generation_s": 11.01,
+      "total_s": 12.11
+    },
+    {
+      "id": "unans1",
+      "language": "en",
+      "type": "unanswerable",
+      "question": "How many cooperative societies were registered in Bihar in 2024?",
+      "expected": {},
+      "sources": [
+        [
+          "ncp_2025_en.pdf",
+          11
+        ],
+        [
+          "ncp_2025_en.pdf",
+          12
+        ],
+        [
+          "mscs_amendment_act_2023.pdf",
+          2
+        ],
+        [
+          "mscs_amendment_rules_2023.pdf",
+          27
+        ],
+        [
+          "ncp_2025_hi.pdf",
+          8
+        ]
+      ],
+      "expected_rank": null,
+      "expected_page_in_top_k": false,
+      "answer": "I could not find this information in the available documents.",
+      "refusal": "no_info",
+      "answer_language": "en",
+      "ok": true,
+      "retrieval_s": 1.21,
+      "generation_s": 25.49,
+      "total_s": 26.7
+    },
+    {
+      "id": "ood1",
+      "language": "hinglish",
+      "type": "out_of_domain",
+      "question": "Paneer butter masala kaise banate hain?",
+      "expected": {},
+      "sources": [
+        [
+          "mh_fruit_crop_insurance_gr_2026_mr.pdf",
+          94
+        ],
+        [
+          "mh_fruit_crop_insurance_gr_2026_mr.pdf",
+          83
+        ],
+        [
+          "grain_storage_plan_sop_en.pdf",
+          42
+        ],
+        [
+          "mh_fruit_crop_insurance_gr_2026_mr.pdf",
+          84
+        ],
+        [
+          "mh_fruit_crop_insurance_gr_2026_mr.pdf",
+          84
+        ]
+      ],
+      "expected_rank": null,
+      "expected_page_in_top_k": false,
+      "answer": "Yeh assistant sirf cooperatives aur sarkari yojanaon se jude sawaalon ka jawab deta hai.",
+      "refusal": "out_of_domain",
+      "answer_language": "hinglish",
+      "ok": true,
+      "retrieval_s": 1.18,
+      "generation_s": 21.25,
+      "total_s": 22.42
+    }
+  ]
+}

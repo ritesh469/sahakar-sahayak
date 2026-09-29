@@ -77,6 +77,8 @@ class Settings(BaseSettings):
     prompt_injection_threshold: float = 0.75
     toxicity_threshold: float = 0.75
     output_toxicity_threshold: float = 0.5
+    # llm-guard PII redaction of PERSON names (English NER): off, it corrupts Hindi/Marathi text
+    pii_redact_person_names: bool = False
     max_validation_retries: int = 2
 
     hyde_num_hypotheses: int = 3

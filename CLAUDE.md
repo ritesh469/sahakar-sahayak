@@ -74,6 +74,10 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 11. **Self-RAG refusal bias.** `self_reflective.py` ka prompt refusal ("I don't have information") ko
     fail maanta hai aur regenerate karwata hai → unanswerable sawaalon par hallucination badhega. (P16)
 12. **Injection regex sirf English** (`models.py`), aur ChatRequest/QueryRequest mein duplicate. (P9)
+14. **(FIXED, P7)** ~~PII redaction Hindi/Marathi sawaal bigaadta tha.~~ llm-guard `Sensitive` ka PERSON
+    (English NER) "किसान", "महिला शेतकरी", "अहिल्या…" ko naam maan ke `<PERSON>` bana deta tha — 5 mein
+    se 3 Devanagari smoke sawaal LLM tak bigde hue pahunchte. Ab PERSON off
+    (`PII_REDACT_PERSON_NAMES=false`); email/phone/card waghera redaction chalu. (P14 mein comparison)
 13. **(FIXED, P5)** ~~Spotlighting mein page number nahi~~; `<chunk ... page="N">`. Graph ka `retrieve_rag`
     ab asli chunks deta hai (`rag_service.retrieve`).
 
@@ -105,6 +109,16 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
   `python -c "import grpc, psycopg2, torch, pyarrow.dataset"`. Fix: `app/__init__.py` Windows par
   `pyarrow.dataset` sabse pehle import karta hai. Naya script `app` import se pehle ye teeno import kare
   to wahi crash aa sakta hai → `import app` sabse upar rakho.
+- **S10. (P6 mein mila)** API ki pehli `/query` par llm-guard ~3 GB models (prompt-injection, toxicity,
+  zero-shot, PII deberta) download karta hai aur spaCy models (`en_core_web_sm`, `zh_core_web_sm`) venv
+  mein **khud install** karta hai → pehli query 10+ min. `uv sync` inhe hata sakta hai (phir se install
+  honge). Demo se pehle ek query chala ke warm up karo.
+- **S11. (P7 mein mila)** GPU 8 GB: API process (bge-m3 + llm-guard) ~4.9 GB leta hai; saath mein
+  script (bge-m3 + reranker) chalane par ek baar bina error segfault hua. Experiments (P11–P13) chalate
+  waqt API band rakho.
+- **Groq free tier (P7 mein naapa):** har model par **8,000 tokens/min** aur **1,000 requests/din**
+  (`x-ratelimit-*` headers). Ek RAG jawab ~2–3k tokens → ~2–3 jawab/min; SDK 429 par ruk ke retry karta
+  hai (isliye kuch jawab 20–150 s). Eval runs isi hisaab se plan karo.
 
 ---
 
