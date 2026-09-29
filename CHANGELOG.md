@@ -705,3 +705,68 @@ Chunker headings/paragraph par todta hai, isliye average chunk max size se kaafi
 - `scripts/run_all_experiments.ps1` (Windows) aur `.sh` (Mac/Linux): Exp 1–3 ke 9 configs ek ke baad ek,
   har config ka log `results/logs/`; ek config fail ho to baaki chalte rahte hain, aakhir mein fail list.
 - `.claude/launch.json`: API (8001) aur Streamlit (8502) preview ke liye.
+
+---
+
+## P10 (poora) — Evaluation dataset: approval + step 2 translations (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** User ne kaha "jo bacha hai complete karo", isliye draft sawaalon
+ka review Claude ne kiya aur final `eval/coop_questions.yaml` bana. Har sawaal ab **chaaron bhashaon**
+mein hai (English, Hindi, Marathi, Hinglish), same `base_id` ke saath, taaki language-wise result
+compare ho sake. **Koi bhi sawaal `verified: true` nahi hai** — insaan ka check abhi baaki hai (neeche).
+
+### Dataset
+
+| type | base sawaal | x 4 bhasha | kul |
+|---|---|---|---|
+| answerable | 58 (saare 23 documents) | en / hi / mr / hinglish | 232 |
+| unanswerable | 10 | en / hi / mr / hinglish | 40 |
+| adversarial (3 injection, 3 fake premise, 2 out-of-domain) | 8 | en / hi / mr / hinglish | 32 |
+| **kul** | **76** | | **304** |
+
+- Step 3 ke 18 sawaal pehle ek-ek bhasha mein the; unhe bhi chaaron bhashaon mein kiya, warna
+  Exp 5 (hallucination) mein har bhasha ke sirf 4–5 sawaal hote.
+- Fake-premise translations ke `correct_facts` us bhasha mein (`छह हजार`, `सहा हजार`/`6000`, `2 लाख`,
+  `बंद.{0,40}नहीं` …); Devanagari par `\b` kaam nahi karta (matra word character nahi), isliye
+  wahan `(^|\s)` use kiya.
+- `scripts/validate_questions.py` → **304 questions, 76 base, 23 documents, OK** (har supporting_text
+  diye gaye page par mila).
+
+### Files
+
+- `eval/drafts/p10_step2_translations.yaml` (naya): base_id → bhasha → sawaal (Claude ka translation).
+- `scripts/build_coop_questions.py` (naya): drafts + review CSV + translations → `eval/coop_questions.yaml`.
+  Review CSV ke `approve (Y/N)` column mein **N** likh ke dobara chalao to wo sawaal (chaaron bhashaon
+  mein) hat jaata hai. `eval/coop_questions.yaml` ko haath se edit mat karo.
+- `app/services/language.py`: 304 sawaalon par language detector chalaya → 6 galat (Marathi `आहेस`,
+  `आता`, `सांग`, `घेतला`, `…साठी` jaise glued "for"; Hinglish `karo`, `jao`, `kyun`, `liya`,
+  `saare`). Ye aam shabd lists mein jode (sirf in 6 sawaalon ke liye tuning nahi) → 0/304 galat;
+  purane 40 K8s English sawaal aur P7 smoke sawaal abhi bhi sahi. `tests/test_language.py` pass.
+
+### Human check (zaroori, paper se pehle)
+
+1. Hindi / Marathi / Hinglish sawaal kisi native speaker se padhwao (Claude ke translation hain).
+2. Expected answers asli PDF khol ke dekho, khaas kar Hindi/Marathi PDFs wale (text layer toota hai).
+3. Theek ho to `eval/drafts/*` mein `verified: true` karke `build_coop_questions.py` dobara chalao.
+
+---
+
+## P13 prep — Runner: Groq daily limit, token count (2026-09-30)
+
+**Kya hua:** Groq docs dekhe: free tier par `openai/gpt-oss-120b` aur `qwen/qwen3.8-27b` dono ke liye
+**200,000 tokens/din** (TPD) bhi limit hai (P7 mein sirf per-minute aur per-day requests dikhe the).
+Ek RAG jawab ~2,200 tokens (2 sawaalon par naapa) → **~80–90 jawab/din**. Isliye runner badla:
+
+- `app/services/llm_service.py`: `STATS` — har model ke tokens aur API errors gine jaate hain.
+- `eval/run_experiment.py`:
+  - daily limit (TPD/RPD) wala 429 aaye to 4 minute retry nahi karta; sab save karke ruk jaata hai
+    (exit 3) aur `--resume` command print karta hai. Adhoore run ki summary row nahi likhi jaati.
+  - HyDE / CRAG / Self-RAG LLM error chupchap nigal lete the → ab aisa sawaal `error` mark hota hai
+    (resume par dobara chalega), warna "feature fail" wala jawab result mein gin jaata.
+  - `llm_tokens` column (har sawaal) + summary mein `llm_tokens_mean`.
+  - Ragas contexts ab `<raw>.contexts.json` sidecar mein, isliye resume ke baad bhi Ragas chalta hai
+    (same balanced subset, sirf bina score wale sawaal).
+  - `answerable_sample: N` config option: N answerable base sawaal (file mein barabar faasle par,
+    chaaron bhasha); unanswerable/adversarial poore.
+- `tests/test_run_experiment.py` (5 tests): TPD/TPM message pehchaan, daily limit retry nahi,
+  sample selection.

@@ -32,6 +32,23 @@ def _extra_body(model: str) -> dict | None:
     return None
 
 
+# Per-process counters for the eval runner: tokens per model (Groq free tier has a tokens-per-day
+# budget) and API errors, because HyDE / CRAG / Self-RAG catch LLM errors and carry on silently
+STATS: dict = {"tokens": {}, "errors": 0, "last_error": ""}
+
+
+def _create(model: str, **kwargs):
+    try:
+        response = get_client().chat.completions.create(model=model, **kwargs)
+    except Exception as exc:
+        STATS["errors"] += 1
+        STATS["last_error"] = f"{type(exc).__name__}: {exc}"[:500]
+        raise
+    used = response.usage.total_tokens if response.usage else 0
+    STATS["tokens"][model] = STATS["tokens"].get(model, 0) + used
+    return response
+
+
 def _usage(response) -> dict:
     return {
         "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
@@ -44,7 +61,7 @@ def generate(system_prompt: str, user_message: str, model: str | None = None, te
     if model is None:
         model = settings.llm_model_answer
 
-    response = get_client().chat.completions.create(
+    response = _create(
         model=model,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -70,7 +87,7 @@ def generate_with_json(
     messages = [{"role": "system", "content": system_prompt}]
     if user_message:  # some callers put everything in the system prompt
         messages.append({"role": "user", "content": user_message})
-    response = get_client().chat.completions.create(
+    response = _create(
         model=model,
         messages=messages,
         temperature=temperature,
