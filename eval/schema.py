@@ -68,3 +68,78 @@ def load_goldens(path: str | Path) -> list[Golden]:
         warnings.warn(f"No golden entries for features: {missing} (OK if demo-only)")
 
     return goldens
+
+# ---------------------------------------------------------------------------------------------
+# Cooperative / government-scheme evaluation set (P10): eval/coop_questions.yaml
+# ---------------------------------------------------------------------------------------------
+
+LANGUAGE = Literal["en", "hi", "mr", "hinglish"]
+QUESTION_TYPE = Literal["answerable", "unanswerable", "adversarial"]
+ADVERSARIAL_KIND = Literal["injection", "fake_premise", "out_of_domain"]
+
+
+class EvidenceRef(BaseModel):
+    """Where the answer is written: file in seed/docs/true_data and (for PDFs) the page."""
+
+    source: str = Field(..., min_length=1)
+    page: int | None = Field(default=None, ge=1)
+
+
+class CoopGolden(BaseModel):
+    """One evaluation question.
+
+    Translations of the same question share a base_id and the same relevant_documents, so
+    results can be compared across languages. answerable questions need the expected answer,
+    the exact supporting text (copied from the document) and where it is.
+    """
+
+    id: str = Field(..., pattern=r"^[a-z]+-\d{3}-(en|hi|mr|hinglish)$")
+    base_id: str = Field(..., pattern=r"^[a-z]+-\d{3}$")
+    language: LANGUAGE
+    type: QUESTION_TYPE
+    adversarial_kind: ADVERSARIAL_KIND | None = None
+    question: str = Field(..., min_length=3)
+    expected_answer: str = ""
+    supporting_text: str = ""
+    relevant_documents: list[EvidenceRef] = Field(default_factory=list)
+    verified: bool = False  # True once a human checked the answer (and translation)
+    notes: str = ""
+
+    @property
+    def should_answer(self) -> bool:
+        return self.type == "answerable"
+
+    @model_validator(mode="after")
+    def check_fields_by_type(self) -> "CoopGolden":
+        if not self.id.startswith(self.base_id + "-") or not self.id.endswith("-" + self.language):
+            raise ValueError(f"{self.id}: id must be '<base_id>-<language>'")
+        if self.type == "answerable":
+            if not self.relevant_documents:
+                raise ValueError(f"{self.id}: answerable question needs relevant_documents")
+            if not self.expected_answer or not self.supporting_text:
+                raise ValueError(f"{self.id}: answerable question needs expected_answer and supporting_text")
+        if self.type == "adversarial" and self.adversarial_kind is None:
+            raise ValueError(f"{self.id}: adversarial question needs adversarial_kind")
+        if self.type != "adversarial" and self.adversarial_kind is not None:
+            raise ValueError(f"{self.id}: adversarial_kind is only for adversarial questions")
+        return self
+
+
+def load_coop_goldens(path: str | Path) -> list[CoopGolden]:
+    raw = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(raw, list):
+        raise ValueError(f"Expected YAML root to be a list, got {type(raw).__name__}")
+    goldens = [CoopGolden.model_validate(entry) for entry in raw]
+
+    ids = [g.id for g in goldens]
+    duplicates = {i for i in ids if ids.count(i) > 1}
+    if duplicates:
+        raise ValueError(f"Duplicate question ids: {sorted(duplicates)}")
+
+    # Translations must point at the same evidence and have the same type
+    by_base: dict[str, CoopGolden] = {}
+    for g in goldens:
+        first = by_base.setdefault(g.base_id, g)
+        if (g.type, g.relevant_documents) != (first.type, first.relevant_documents):
+            raise ValueError(f"{g.id}: type/relevant_documents differ from {first.id} (same base_id)")
+    return goldens

@@ -569,3 +569,45 @@ llm-guard (AI model) aur system prompt ki spotlighting.
 
 - Regex sirf jaani-pehchaani phrasing pakadta hai; paraphrase/transliteration ke naye roop nikal sakte
   hain. P14 mein poore API path (regex → llm-guard → prompt) par language-wise block rate naapenge.
+
+---
+
+## P10 — Evaluation dataset: step 1 + step 3 drafts (2026-09-30) — **user approval pending**
+
+**Kya hua (simple Hinglish mein):** Evaluation ke liye sawaalon ka pehla draft bana. Har document ko padh
+ke 58 English sawaal chune gaye jinka jawab document mein saaf likha hai, har ek ke saath expected jawab,
+**exact supporting text** (PDF se nikla hua) aur file + page. Saath mein 10 unanswerable aur 8 adversarial
+sawaal (EN/HI/MR/Hinglish mix). Ye sab **draft** hain (`eval/drafts/`); `eval/coop_questions.yaml` user
+ke approve karne ke baad hi banegi (CLAUDE.md P10 Step 2).
+
+### Files
+
+- `eval/schema.py`: `CoopGolden` model (id `<base_id>-<lang>`, type answerable/unanswerable/adversarial,
+  `adversarial_kind` injection/fake_premise/out_of_domain, `expected_answer`, `supporting_text`,
+  `relevant_documents` [{source, page}], `verified`) + `load_coop_goldens` (duplicate ids, translations
+  ka same type/evidence check).
+- `scripts/validate_questions.py`: schema + har `relevant_document` `seed/docs/true_data/` mein hai +
+  page exist karta hai + supporting_text sach mein us page (ya agle page) ke docling text mein hai.
+- `eval/drafts/p10_step1_candidates.yaml` + `p10_step1_review.csv` (Excel mein kholo, `approve` column
+  mein Y/N): 58 answerable, **saare 23 documents** cover; parallel language versions (NCP en/hi, grain
+  SOP en/hi, e-KYC en/hi/mr, women act en/mr, PM-KMY FAQs/guidelines) ke pages bhi `relevant_documents`
+  mein, taaki Hindi sawaal par Hindi PDF retrieve ho to bhi hit gina jaaye.
+- `eval/drafts/p10_step3_candidates.yaml` + `p10_step3_review.csv`: 10 unanswerable (har ek ke liye
+  corpus mein grep karke check kiya ki jawab nahi hai), 8 adversarial (3 injection, 3 fake premise,
+  2 out-of-domain).
+
+### Verify kiya
+
+- `validate_questions.py --questions eval/drafts/p10_step1_candidates.yaml` → 58 questions, 23 documents,
+  **OK** (har supporting_text diye gaye page par exact mila).
+- Step 3 draft → 18 questions, schema OK.
+
+### Human review ke liye (zaroori)
+
+- Hindi/Marathi PDFs ka text layer toota hai, isliye kuch `supporting_text` ajeeb dikhte hain
+  (`कें ि वह्सा ६०%` = केंद्र हिस्सा 60%). Ye jaan-boojh ke exact extracted text hai (validator isi se
+  match karta hai); jawab **asli PDF** khol ke check karo.
+- Unanswerable `unans-008` (loan waiver ki last date): GR mein koi deadline nahi mili, par ek baar PDF
+  mein dekh lo.
+- **P11 ke liye note:** `eval/metrics.answer_outcome` fake-premise sawaal ke sahi jawab (jo premise
+  sudhaarta hai) ko bhi "hallucination" ginega → P11 mein alag outcome chahiye.
