@@ -69,6 +69,19 @@ def should_trigger_web_search(evaluation: CRAGEvaluation) -> bool:
     )
 
 
+def _web_or_nothing(question: str, evaluation: CRAGEvaluation):
+    """Irrelevant retrieval: use web results if WEB_FALLBACK_ENABLED, else drop the chunks
+    so the answer model refuses instead of answering from off-topic text."""
+    if not settings.web_fallback_enabled:
+        return ([], evaluation, False)
+    try:
+        web_chunks = search_web(question)
+        return (web_chunks, evaluation, True)
+    except ValueError:
+        logger.warning("Web search triggered but Tavily API key not configured")
+        return ([], evaluation, False)
+
+
 def crag_pipeline(
     question: str,
     chunks: list[RetrievedChunk],
@@ -94,22 +107,15 @@ def crag_pipeline(
             confidence=1.0,
             reasoning="No chunks retrieved",
         )
-
-        try:
-            web_chunks = search_web(question)
-            return (web_chunks, evaluation, True)
-        except ValueError:
-            logger.warning("Web search triggered but Tavily API key not configured")
-            return ([], evaluation, False)
+        return _web_or_nothing(question, evaluation)
 
     evaluation = grade_chunks(question, chunks)
 
-    if should_trigger_web_search(evaluation):
-        try:
-            web_chunks = search_web(question)
-            return (web_chunks, evaluation, True)
-        except ValueError:
-            logger.warning("Web search triggered but Tavily API key not configured")
-            return ([], evaluation, False)
+    # CRAG's three actions: correct (keep), ambiguous (keep + web), incorrect (discard -> web)
+    if evaluation.relevance_score < settings.crag_ambiguous_threshold:
+        return _web_or_nothing(question, evaluation)
+    if should_trigger_web_search(evaluation) and settings.web_fallback_enabled:
+        web_chunks, _, used_web = _web_or_nothing(question, evaluation)
+        return (chunks + web_chunks, evaluation, used_web)
 
     return (chunks, evaluation, False)

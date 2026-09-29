@@ -13,6 +13,7 @@ from app.security.spotlighting import build_spotlighted_context
 from app.security.system_prompt import build_system_prompt
 from app.services.crag import crag_pipeline
 from app.services.embedding_service import embed_texts
+from app.services.language import LANG_NAMES, detect_language
 from app.services.reranking import Reranker
 from app.services.llm_service import generate
 from app.services.vector_store import search, hybrid_search, sparse_search
@@ -80,6 +81,9 @@ def _retrieve(question: str, flags: dict | None = None) -> list[RetrievedChunk]:
     return chunks
 
 
+retrieve = _retrieve  # public name for callers outside this module (graph, eval)
+
+
 def _generate(
     question: str,
     chunks: list[RetrievedChunk],
@@ -89,9 +93,14 @@ def _generate(
 
     spotlighted = build_spotlighted_context(chunks)
     system = build_system_prompt()
+    # Detected from the original question, so a refined (Self-RAG) question keeps the language
+    answer_language = LANG_NAMES[detect_language(question)]
 
     def _raw(q: str) -> str:
-        return generate(system, f"{spotlighted}\n\nQuestion: {q}")["text"]
+        user_msg = f"{spotlighted}\n\nAnswer language: {answer_language}\n\nQuestion: {q}"
+        text = generate(system, user_msg)["text"].strip()
+        # gpt-oss sometimes cites with full-width 【…】; keep one citation format
+        return text.replace("【", "[").replace("】", "]")
 
     working_q = question
     raw = _raw(working_q)
@@ -221,7 +230,19 @@ def _run_hybrid_inline(
 
 
 
-def run_rag(question: str, flags: dict | int | None = None) -> ChatResponse:
+def _route(question: str, intent: str | None) -> str:
+    """Intent for this question. With SQL_ENABLED=false every query is RAG and no LLM
+    router call is made; callers that already routed (the graph) pass their intent in."""
+    if intent is not None:
+        return intent
+    if not settings.sql_enabled:
+        return "rag"
+    return classify_intent(question)
+
+
+def run_rag(
+    question: str, flags: dict | int | None = None, intent: str | None = None
+) -> ChatResponse:
     cache_ctx = (
         _cache_context(flags) if isinstance(flags, dict) else _cache_context(None)
     )
@@ -232,7 +253,7 @@ def run_rag(question: str, flags: dict | int | None = None) -> ChatResponse:
         resp.metadata.cache_hit = True
         return resp
 
-    intent = classify_intent(question)
+    intent = _route(question, intent)
     logger.info(
         "L8 query | intent={} mode={} rerank={} hyde={} crag={} self_rag={} top_k={}",
         intent,
@@ -272,9 +293,9 @@ def _cache_context(flags: dict | None) -> dict:
 
 
 def run_rag_with_trace(
-    question: str, flags: dict | int | None = None
+    question: str, flags: dict | int | None = None, intent: str | None = None
 ) -> tuple[ChatResponse, list[RetrievedChunk]]:
-    intent = classify_intent(question)
+    intent = _route(question, intent)
     if intent == "sql":
         response = _run_sql_inline(question)
         # Expose SQL rows as RetrievedChunks so eval can score them

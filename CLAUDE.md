@@ -30,8 +30,9 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
   `os.getenv` se padhta hai (default 5432 = dusre project ka DB!). Setup problem S1 dekho.
 - LLM provider: **Groq** (chat). Groq embeddings nahi deta → embeddings local GPU model:
   **`BAAI/bge-m3`** (1024-dim, 8192 tokens, CUDA fp16), `.env`: `EMBEDDING_BACKEND=local`,
-  `EMBEDDING_MODEL`, `EMBEDDING_DIM=1024` (P2). `OPENAI_API_KEY` placeholder abhi bhi chahiye
-  (`llm_service` import par OpenAI client banata hai, S3) jab tak P5 mein Groq na aaye.
+  `EMBEDDING_MODEL`, `EMBEDDING_DIM=1024` (P2). Chat (P5): `LLM_PROVIDER=groq`,
+  `LLM_MODEL_ANSWER=openai/gpt-oss-120b`, `LLM_MODEL_GRADER=qwen/qwen3.8-27b`, `LLM_REASONING_EFFORT=low`.
+  Reranker: `BAAI/bge-reranker-v2-m3` (local GPU).
 - Chunking (P2): `CHUNK_SIZE` / `CHUNK_OVERLAP` tokens bge-m3 tokenizer se gine jaate hain.
   `PDF_BACKEND=pypdfium2` (S8 dekho).
 - Qdrant collection = `{QDRANT_COLLECTION_PREFIX}_{chunk_size}` → `coop_256`, `coop_512`, `coop_1024`.
@@ -62,17 +63,19 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 5. **(FIXED, P2)** ~~page_number gum ho jata hai.~~ Chunk → Qdrant payload → search/rerank/RRF/preview
    tak page jaata hai. Kai pages par phaila paragraph `charspan` se sahi page deta hai.
 6. **(FIXED, P2)** ~~Ek hi Qdrant collection.~~ Ab har chunk size ki alag collection (`coop_512` etc.).
-7. **SQL/Text2SQL path hamesha on + double routing.** Graph `route_intent` mein LLM router chalata hai, phir
-   `run_rag` dobara `classify_intent` chalata hai (har query par 2 extra LLM calls). Router prompt K8s ka hai. (P5)
-8. **System prompt K8s SRE ka hai aur JSON output maangta hai**, jabki code answer ko plain text maanta hai. (P5)
-9. **Multilingual/grounding rules nahi:** user ki language mein jawab, `[source, p. N]` citation,
-   fixed refusal sentence, out-of-domain mana — kuch bhi nahi. (P5)
-10. **CRAG default on + Tavily web fallback** — documents ke bahar ka content answer mein aa sakta hai;
-    web fallback band karne ka flag nahi. (P5)
+7. **(FIXED, P5)** ~~SQL path hamesha on + double routing.~~ `SQL_ENABLED=false` → router LLM call nahi,
+   route hamesha "rag"; graph jo intent tay kare wahi `run_rag(intent=...)` ko jaata hai. SQL code rakha hai.
+8. **(FIXED, P5)** ~~System prompt K8s SRE + JSON.~~ Ab cooperative/scheme assistant, plain text.
+9. **(FIXED, P5)** ~~Multilingual/grounding rules nahi.~~ `app/services/language.py` sawaal ki language
+   (en/hi/mr/hinglish) pehchaanta hai; prompt: sirf context, `[file, p. N]` citation, fixed refusal /
+   out-of-domain sentences (4 languages, `system_prompt.REFUSAL_MESSAGES` — eval inhi ko dhoondhta hai).
+10. **(FIXED, P5)** ~~CRAG default on + web fallback.~~ `CRAG_ENABLED_BY_DEFAULT=false`,
+    `WEB_FALLBACK_ENABLED=false`; CRAG "incorrect" par web ki jagah chunks hata deta hai (→ refusal).
 11. **Self-RAG refusal bias.** `self_reflective.py` ka prompt refusal ("I don't have information") ko
     fail maanta hai aur regenerate karwata hai → unanswerable sawaalon par hallucination badhega. (P16)
 12. **Injection regex sirf English** (`models.py`), aur ChatRequest/QueryRequest mein duplicate. (P9)
-13. **Spotlighting mein page number nahi**; graph ka `retrieve_rag` source-string ko hi chunk text bana deta hai. (P5)
+13. **(FIXED, P5)** ~~Spotlighting mein page number nahi~~; `<chunk ... page="N">`. Graph ka `retrieve_rag`
+    ab asli chunks deta hai (`rag_service.retrieve`).
 
 ### Setup problems (P1 mein mile, abhi fix nahi kiye)
 
@@ -81,10 +84,10 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 - **S2. (FIXED, P1 follow-up)** Rate limiter aur token budget ko Upstash Redis zaroori tha → `/auth/login`
   500 deta tha. Ab Upstash na ho to in-memory fallback (`tests/test_redis_fallback.py`).
   Dhyan do: login limit 5/min per IP hai (`AUTH_LOGIN_RATE_LIMIT_PER_MIN`) — P14 mein ek hi token reuse karo.
-- **S3.** `llm_service.py` import par hi OpenAI client banata hai; khaali key par app crash (isliye
-  placeholder). Groq ke liye base_url support nahi. (`embedding_service.py` wala hissa P2 mein fix: lazy.)
+- **S3. (FIXED, P5)** ~~`llm_service.py` import par OpenAI client~~ → `get_client()` lazy; `LLM_PROVIDER=groq`
+  (Groq base_url), `LLM_MAX_RETRIES` (429 par SDK retry). `OPENAI_API_KEY` placeholder ab zaroori nahi.
 - **S4.** `middleware/auth.create_access_token`: `expires_delta_seconds` pass karne par `expire` undefined (bug).
-- **S5.** Reranker har query par `Reranker()` naya banata hai → CrossEncoder model har baar load hota hai.
+- **S5. (FIXED, P5)** ~~Reranker har query par model load~~ → CrossEncoder model-name ke hisaab se cache (fp16 CUDA).
 - **S6.** Windows console (cp1252) Hindi/Marathi print karne par `UnicodeEncodeError` deta hai →
   scripts `PYTHONIOENCODING=utf-8` ke saath chalao (ya script mein `sys.stdout.reconfigure(encoding="utf-8")`).
 - **S7. (P2 mein mila)** Windows Developer Mode off → HF cache symlink nahi bana sakta. `snapshot_download`
@@ -96,6 +99,12 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 - **S8. (P2 mein mila, workaround)** Docling ka default PDF backend (docling-parse) kuch pages par
   `std::bad_alloc` deta hai aur page chupchap chhod deta hai (K8s PV PDF: 16 mein se 12–14 pages).
   `PDF_BACKEND=pypdfium2` se 16/16 pages. Ab `process_document` missing pages ka WARNING log karta hai.
+- **S9. (P5 mein mila, workaround)** Windows par `grpc` (qdrant_client) + `psycopg2` + `torch` load hone ke
+  BAAD `pyarrow.dataset` load ho (sentence_transformers → datasets → pandas) to process segfault
+  (access violation) — koi Python error nahi, seedha exit 139. Repro:
+  `python -c "import grpc, psycopg2, torch, pyarrow.dataset"`. Fix: `app/__init__.py` Windows par
+  `pyarrow.dataset` sabse pehle import karta hai. Naya script `app` import se pehle ye teeno import kare
+  to wahi crash aa sakta hai → `import app` sabse upar rakho.
 
 ---
 

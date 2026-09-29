@@ -1,0 +1,26 @@
+"""Question language detection (en / hi / mr / hinglish)."""
+
+import pytest
+
+from app.services.language import detect_language
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("How much money does a farmer get under PM-KISAN?", "en"),
+        ("What is the role of a primary agricultural credit society?", "en"),
+        ("Who can become a member of a cooperative society?", "en"),
+        ("पीएम किसान योजना में किसान को कितना पैसा मिलता है?", "hi"),
+        ("राष्ट्रीय सहकारिता नीति 2025 का लक्ष्य क्या है?", "hi"),
+        ("सहकारी समिति का सदस्य कौन बन सकता है?", "hi"),
+        ("पीएम किसान योजनेत शेतकऱ्यांना वर्षाला किती रक्कम मिळते?", "mr"),
+        ("सहकारी संस्थेच्या निवडणुकीसाठी पॅनेल कसे तयार केले जाते?", "mr"),
+        ("कर्जमुक्ती योजनेचा लाभ कोणाला मिळतो?", "mr"),
+        ("PM Kisan mein kitna paisa milta hai?", "hinglish"),
+        ("Sahkari samiti ka member kaun ban sakta hai?", "hinglish"),
+        ("Grain storage yojana ke liye kya documents chahiye?", "hinglish"),
+    ],
+)
+def test_detect_language(question, expected):
+    assert detect_language(question) == expected

@@ -6,6 +6,10 @@ from app.models import RetrievedChunk
 
 logger = logging.getLogger(__name__)
 
+# Loaded cross-encoders by model name: rag_service creates a Reranker per query, and loading
+# bge-reranker-v2-m3 (~2 GB) every time made each reranked query slow (setup problem S5)
+_LOCAL_MODELS: dict[str, object] = {}
+
 
 class Reranker:
     def __init__(self) -> None:
@@ -15,9 +19,15 @@ class Reranker:
 
     def _load_local_model(self) -> object:
         if self._local_model is None:
-            from sentence_transformers import CrossEncoder
+            name = settings.reranker_model
+            if name not in _LOCAL_MODELS:
+                import torch
+                from sentence_transformers import CrossEncoder
 
-            self._local_model = CrossEncoder(settings.reranker_model)
+                kwargs = {"torch_dtype": torch.float16} if torch.cuda.is_available() else {}
+                # max_length bounds memory: chunks are <= 1024 tokens plus the question
+                _LOCAL_MODELS[name] = CrossEncoder(name, max_length=1280, model_kwargs=kwargs)
+            self._local_model = _LOCAL_MODELS[name]
         return self._local_model
 
     def _load_voyage_client(self) -> object:

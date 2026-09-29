@@ -300,3 +300,63 @@ Sabse zyaada chunks: `mh_fruit_crop_insurance_gr_2026_mr.pdf` (669, zila-war tab
 
 - `pytest tests/` → **50 passed**.
 - Qdrant `coop_512`: 1,969 points, sab ke payload mein `page_number`.
+
+---
+
+## P5 — Domain, grounding, multilingual answer (2026-09-29)
+
+**Kya hua (simple Hinglish mein):** Chatbot ab K8s SRE assistant nahi, **"Sahakar Sahayak"** hai: sirf
+documents se jawab deta hai, sawaal ki language mein jawab deta hai, har fact ke baad `[file, p. N]`
+citation lagata hai, jawab na mile to ek fixed "nahi mila" sentence bolta hai, aur domain ke bahar ke
+sawaal (cricket, film) par politely mana karta hai. Chat LLM ab Groq par hai. Known problems #7, #8,
+#9, #10, #13 aur setup problems S3, S5 fix.
+
+### Kya badla (file by file)
+
+| File | Badlav | Kyun |
+|---|---|---|
+| `app/security/system_prompt.py` | Naya prompt: language, grounding, citation, refusal, out-of-domain, security, plain text. Refusal/OOD sentences 4 languages mein constants (`REFUSAL_MESSAGES`, `OUT_OF_DOMAIN_MESSAGES`) | Eval (P11) exact sentence dhoondh ke refusal/hallucination ginta hai |
+| `app/services/language.py` (naya) | Rule-based detector: Devanagari % + Hindi/Marathi aam shabd (है/आहे, ळ, -ांना) + Hinglish shabd (kya, kaise, mein) → en/hi/mr/hinglish | LLM Hinglish sawaal ka jawab Devanagari mein de deta tha; ab prompt mein `Answer language:` jaata hai |
+| `app/services/rag_service.py` | `_route()`: SQL off → seedha "rag" (LLM router call nahi); `run_rag(intent=...)`; `retrieve()` public; `【】` citation → `[]` | Har query par 2 extra LLM calls bachi |
+| `app/core/graph.py` | `route_intent` SQL off par skip; `generate_answer` intent aage deta hai (dobara routing nahi); `retrieve_rag` asli chunks | Double routing + source-string-as-text bug |
+| `app/security/spotlighting.py` | `<chunk source=".." page="N">` | LLM ko page pata ho tabhi `p. N` cite kar sakta hai |
+| `app/services/crag.py` | `WEB_FALLBACK_ENABLED=false` par web search nahi; relevance "incorrect" → chunks hata do (→ refusal) | Documents ke bahar ka content answer mein na aaye |
+| `app/models.py` | `enable_crag` default = `CRAG_ENABLED_BY_DEFAULT` (false) | |
+| `app/services/llm_service.py` | `get_client()` lazy; Groq base_url; `max_retries` (429); gpt-oss ke liye `reasoning_effort=low` | S3; Groq free tier tokens/min limit |
+| `app/services/reranking.py` | CrossEncoder ek baar load, cache (fp16 CUDA, `max_length=1280`) | S5: har query par ~2 GB model load |
+| `app/api/admin.py` | `/admin/health`: `llm` + `llm_provider`; redis/tavily band hon to `null` (status degrade nahi) | |
+| `app/__init__.py` | Windows par `pyarrow.dataset` pehle import | Naya crash S9 (neeche) |
+| `tests/test_grounding.py` (naya) | 5 tests | |
+| `tests/test_language.py` (naya) | 12 tests (EN/HI/MR/Hinglish detection) | |
+
+### Error aur root cause
+
+| Error | Root cause | Fix |
+|---|---|---|
+| Pehli test query par Python bina error message ke band (`Segmentation fault`, exit 139) | Windows DLL conflict: `grpc` (Qdrant client) + `psycopg2` (SQL service) + `torch` pehle load, phir `pyarrow.dataset` (sentence_transformers → datasets → pandas) load hote hi access violation. Imports ek-ek karke hata ke (bisect) minimal repro mila: `python -c "import grpc, psycopg2, torch, pyarrow.dataset"` | `app/__init__.py` mein Windows par `pyarrow.dataset` sabse pehle load (CLAUDE.md S9) |
+
+### Test query (dense + rerank, top 5, `coop_512`, `openai/gpt-oss-120b` on Groq)
+
+| Sawaal | Jawab (chhota) | Top source |
+|---|---|---|
+| EN: PM-KISAN mein saal ke kitne paise, kitni kiston mein? | Rs 6,000/year, 3 kist Rs 2,000 `[pmkisan_ekyc_note_en.pdf, p. 1]` | pmkisan_ekyc_note_en p. 1 |
+| HI: पीएम-किसान योजना में साल में कितनी राशि? | हिंदी में: ₹6,000, तीन किस्तें `[… p. 1]` | pmkisan_ekyc_note_en p. 1 |
+| MR: पीएम किसान ई-केवायसी कशी करावी? | मराठी में: 3 modes + steps, har line citation | pmkisan_ekyc_note_en p. 2 |
+| Hinglish: PM-KISAN ka e-KYC kaise karein? | Hinglish (Latin script) mein: OTP / biometric / face auth | pmkisan_ekyc_note_hi p. 1 |
+| Unanswerable: Bihar mein 2024 mein kitni societies register hui? | "I could not find this information in the available documents." | (rerank score 0.08) |
+| Out-of-domain: 2011 cricket world cup? | "This assistant only answers questions about cooperatives and government schemes." | – |
+
+Latency: pehla sawaal 30.7 s (bge-m3 + reranker load), baaki 1.7–2.4 s; unanswerable/OOD ~23 s
+(shayad Groq tokens/min limit par SDK ka retry-wait; P7 mein naapenge).
+
+### Verify kiya
+
+- `pytest tests/` → **55 passed**.
+- Upar ke 6 sawaal: sahi language, citation, refusal aur OOD sentence.
+
+### Abhi khula
+
+- Marathi jawab mein LLM ne `**bold**` heading lagayi (prompt "plain text" kehta hai); Streamlit mein theek
+  dikhta hai, eval par asar nahi.
+- Hindi sawaal ka citation English document ka hai (dono retrieve hue the) — galat nahi, par
+  language-wise analysis (P13) mein dekhna.

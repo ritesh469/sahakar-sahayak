@@ -13,7 +13,7 @@ from app.config import settings
 from app.core.state import GraphState
 from app.security.spotlighting import build_spotlighted_context
 from app.services.llm_service import generate
-from app.services.rag_service import run_rag
+from app.services.rag_service import retrieve, run_rag
 from app.services.router_service import classify_intent
 from app.services.sql_service import SQLService
 
@@ -46,21 +46,19 @@ def _safe_json_dumps(obj: Any, **kwargs: Any) -> str:
 
 
 def route_intent(state: GraphState) -> dict:
-    """LLM-based intent router for sql/rag/hybrid."""
+    """LLM-based intent router for sql/rag/hybrid; skipped (always rag) when SQL is off."""
+    if not settings.sql_enabled:
+        return {"intent": "rag"}
     intent = classify_intent(state["question"])
     return {"intent": intent}
 
 
 def retrieve_rag(state: GraphState) -> dict:
-    response = run_rag(state["question"], flags=state.get("flags", {}))
+    # Hybrid (RAG + SQL) path: only retrieval here, the answer is generated later
+    chunks = retrieve(state["question"], flags=state.get("flags", {}))
     return {
-        "retrieved_chunks": response.sources,
-        "spotlighted_context": build_spotlighted_context([
-            type("Chunk", (), {"text": s, "source": s, "score": 0.0})()
-            for s in response.sources
-        ]),
-        # "rag_cache_hit": response.cache_hit,
-        # "cache_hits": {"rag_answer": response.cache_hit},
+        "retrieved_chunks": list(dict.fromkeys(c.source for c in chunks)),
+        "spotlighted_context": build_spotlighted_context(chunks),
     }
 
 
@@ -116,7 +114,8 @@ def generate_answer(state: GraphState) -> dict:
     if intent == "hybrid":
         return _generate_hybrid_answer(state)
 
-    response = run_rag(state["question"], flags=state.get("flags", {}))
+    # Intent is already decided by route_intent: do not let run_rag route a second time
+    response = run_rag(state["question"], flags=state.get("flags", {}), intent="rag")
     chunk_previews = [
         chunk.model_dump() for chunk in response.metadata.retrieved_chunks
     ]

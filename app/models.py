@@ -2,6 +2,8 @@ import re
 from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
+from app.config import settings
+
 class ChatRequest(BaseModel):
     message: str = Field(
         ...,
@@ -74,7 +76,7 @@ class QueryRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=50)
     enable_hyde: bool = False
     search_mode: Literal["dense", "sparse", "hybrid"] = "dense"
-    enable_crag: bool = True
+    enable_crag: bool = Field(default_factory=lambda: settings.crag_enabled_by_default)
     enable_self_reflective: bool = False
 
     @field_validator("question")
