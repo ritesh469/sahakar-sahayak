@@ -42,9 +42,9 @@ India's cooperative sector and its welfare schemes are documented in Acts, rules
 operational guidelines and state government resolutions (GRs). The people these documents are
 meant for (farmers, members of primary agricultural credit societies (PACS), cooperative staff)
 often read Hindi or Marathi better than English, and frequently write in Hinglish, a Latin-script
-mix of Hindi and English. The Ministry of Cooperation has itself described this gap as a lack of
-awareness "due to language barriers and limited access to reliable guidance" (Smart India
-Hackathon 2026, problem statement 26088 [SIH26088]).
+mix of Hindi and English. Language barriers therefore limit their access to reliable guidance on
+cooperative law and schemes **[CITATION NEEDED: a published source on awareness of cooperative
+or government schemes among farmers and the role of language]**.
 
 Large language models (LLMs) can answer such questions fluently, but a fluent wrong answer about a
 subsidy amount, an eligibility age or a deadline can cost a farmer money. Retrieval-augmented
@@ -578,9 +578,6 @@ guardrails) are **[PENDING]**.
 - [Robertson2009] S. Robertson, H. Zaragoza. "The Probabilistic Relevance Framework: BM25 and
   Beyond." Foundations and Trends in Information Retrieval 3(4):333–389, 2009.
   doi:10.1561/1500000019
-- [SIH26088] Smart India Hackathon 2026, Problem Statement 26088: "Multilingual Cooperative
-  Governance & Legal Assistance Chatbot." Ministry of Cooperation, National Council for
-  Cooperative Training (NCCT). [Add the URL of the problem statement page.]
 - [Yan2024] S.-Q. Yan, J.-C. Gu, Y. Zhu, Z.-H. Ling. "Corrective Retrieval Augmented
   Generation." arXiv:2401.15884, 2024. https://arxiv.org/abs/2401.15884
 - [Zhang2022] X. Zhang, N. Thakur, O. Ogundepo, et al. "Making a MIRACL: Multilingual Information

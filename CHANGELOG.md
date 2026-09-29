@@ -951,8 +951,7 @@ bias Exp 6 ke baad.
   Spotlighting, Docling; titles arXiv API se check), BM25 (Robertson & Zaragoza 2009, DOI) aur RRF
   (Cormack et al. SIGIR 2009) search se check, MIRACL (title check kiya — yaad wala title galat tha),
   software links (llm-guard, rank_bm25, bge-reranker-v2-m3) khol ke check. Indian-language RAG /
-  scheme chatbot papers ke liye **[CITATION NEEDED]** — fake reference nahi banaya. SIH 2026
-  problem statement 26088 motivation ke roop mein (URL user ko bharna hai).
+  scheme chatbot papers ke liye **[CITATION NEEDED]** — fake reference nahi banaya.
 - `eval/make_result_tables.py`: naya `results/tokenizer_results.csv` (`sparse_comparison.json` se),
   taaki paper ke tokenizer numbers bhi CSV se aayein.
 - `scripts/run_llm_experiments.{ps1,sh}` (naya): Exp 3 + Exp 6 (6 configs) ek command mein, phir
