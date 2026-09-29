@@ -15,6 +15,10 @@ from app.config import settings
 from app.services.text_cleaning import clean_extracted_text
 
 
+# Chunks with fewer non-space characters than this are not indexed (no retrievable content)
+MIN_CHUNK_CHARS = 10
+
+
 def _file_hash(path: str | Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -137,9 +141,13 @@ class DocumentProcessor:
         chunks = []
         prev_text = ""
 
+        skipped = 0
         for chunk in chunk_iter:
             # Fake-bold PDFs repeat Devanagari vowel signs; collapse them before indexing
             clean = clean_extracted_text(chunk.text)
+            if len("".join(clean.split())) < MIN_CHUNK_CHARS:
+                skipped += 1  # image placeholders, stray page numbers, empty table cells
+                continue
             text = clean
             if self.chunk_overlap and prev_text:
                 text = f"{self._tail(prev_text, self.chunk_overlap).strip()} {text}"
@@ -149,6 +157,6 @@ class DocumentProcessor:
                 "source": source_name,
                 "page_number": _page_number(chunk, self.chunker.delim),
             })
-        logger.info("Processed {} chunks from {} (chunk_size={}, overlap={})",
-                    len(chunks), file_path, self.chunk_size, self.chunk_overlap)
+        logger.info("Processed {} chunks from {} (chunk_size={}, overlap={}, {} near-empty skipped)",
+                    len(chunks), file_path, self.chunk_size, self.chunk_overlap, skipped)
         return chunks

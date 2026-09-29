@@ -265,3 +265,38 @@ p. 6 par check kiya), yaani problem PDF ke andar ki hai, backend ki nahi.
 - `pytest tests/test_check_docs.py` → 13 passed (OCR Chinese garbage, expected-language mismatch,
   damaged Devanagari = WARN, clean Hindi/Marathi = 0%).
 - `check_docs.py` final run: **23 files | SUSPICIOUS: 0 | WARN: 16** (sirf Devanagari text-layer warnings).
+
+---
+
+## P4 — Ingestion, chunk size 512 (2026-09-29)
+
+**Kya hua:** Saare 23 documents `coop_512` collection mein ingest hue (noise sample 0). Report
+`results/ingestion_512.json` mein hai (per-document aur language-wise numbers ke saath).
+
+| Metric | Value |
+|---|---|
+| Documents ingested / failed | 23 / 0 |
+| Pages (total / missing) | 673 / 0 |
+| Chunks | 1,969 (sab ke saath page_number) |
+| Avg chunk length | 875.7 characters, 333.8 tokens (bge-m3 tokenizer) |
+| Min / max chunk tokens | 5 / 512 |
+| Chunks by language (sources.csv) | en 433, hi 209, mr 1,023, en+hi 304 |
+| Time | 1.3 min (conversion cache se; bina cache ~35 min) |
+
+Sabse zyaada chunks: `mh_fruit_crop_insurance_gr_2026_mr.pdf` (669, zila-war tables),
+`mscs_act_2002_en.pdf` (174), `mh_pmfby_gr_2026_mr.pdf` (169).
+
+### Files
+
+- `scripts/seed_db.py`: `--report PATH` → JSON (documents, chunks, avg chars/tokens, min/max,
+  pages, missing pages, language-wise, har failure ki poori wajah, per-document record).
+  `_ingest_one` ab exception ka message bhi log karta hai (pehle sirf type).
+- `app/services/document_processor.py`: 10 se kam non-space characters wale chunks index nahi hote
+  (pehle 19 aise the: `''`, `'1643145)'`, `'000\n.'` — image placeholders / table ke tukde).
+- `tests/test_page_number.py`: conversion cache temp folder mein; ingestion record aur cache-hit check;
+  koi khaali chunk nahi.
+
+### Verify kiya
+
+- `pytest tests/` → **50 passed**.
+- Qdrant `coop_512`: 1,969 points, sab ke payload mein `page_number`.

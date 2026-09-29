@@ -50,6 +50,15 @@ def _fake_embed(texts: list[str]) -> list[list[float]]:
     ]
 
 
+@pytest.fixture(scope="module", autouse=True)
+def isolated_doc_cache(tmp_path_factory):
+    """Keep test conversions out of the real DOC_CACHE_DIR."""
+    old = settings.doc_cache_dir
+    settings.doc_cache_dir = str(tmp_path_factory.mktemp("doc_cache"))
+    yield
+    settings.doc_cache_dir = old
+
+
 @pytest.fixture(scope="module")
 def pdf_path(tmp_path_factory):
     path = tmp_path_factory.mktemp("docs") / "two_pages.pdf"
@@ -71,6 +80,7 @@ def chunks(processor, pdf_path):
 def test_every_chunk_has_page_number(chunks):
     assert chunks
     assert all(isinstance(c["page_number"], int) for c in chunks)
+    assert all(len(c["text"].strip()) >= 10 for c in chunks)  # no empty/near-empty chunks
     assert {c["page_number"] for c in chunks} == {1, 2}
 
 
@@ -152,9 +162,16 @@ def test_ingest_saves_page_number_in_qdrant(processor, pdf_path):
         assert len(results) == len(points)
         assert {r.page_number for r in results} == {1, 2}
 
-        # Deterministic ids: ingesting the same file again must not duplicate points
+        # Per-document record for the ingestion report
+        record = counters["documents"][0]
+        assert record["status"] == "ok" and record["chunks"] == len(points)
+        assert record["pages"] == 2 and record["chunks_with_page"] == len(points)
+
+        # Deterministic ids: ingesting the same file again must not duplicate points;
+        # the second run reads the conversion from the doc cache
         _ingest_one(processor, pdf_path, 1, 1, counters, _fake_embed, upsert, RetrievedChunk)
         assert client.count(collection).count == len(points)
+        assert processor.last_info["cached"] is True
     finally:
         if client.collection_exists(collection):
             client.delete_collection(collection)

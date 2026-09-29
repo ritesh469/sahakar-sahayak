@@ -70,6 +70,7 @@ def seed_docs(
     noise_sample_size: int | str = 150,
     chunk_size: int | None = None,
     recreate: bool = False,
+    report: str | None = None,
 ) -> dict:
     from functools import partial
 
@@ -123,17 +124,88 @@ def seed_docs(
     logger.info("  total chunks upserted: {}", counters["chunks"])
     logger.info("=" * 60)
 
+    if report:
+        write_report(report, counters, processor, collection, elapsed)
     return counters
+
+
+def _source_languages() -> dict[str, str]:
+    path = Path(DOCS_DIR).parent.parent / "data" / "sources.csv"
+    if not path.exists():
+        return {}
+    import csv
+
+    with path.open(encoding="utf-8-sig", newline="") as f:
+        return {r["filename"]: r.get("language", "") for r in csv.DictReader(f)}
+
+
+def write_report(path: str, counters: dict, processor, collection: str, elapsed: float) -> None:
+    """Ingestion numbers for the paper (P4): documents, chunks, lengths, failures + reasons."""
+    import json
+    from datetime import datetime
+
+    from app.config import settings
+
+    docs = counters.get("documents", [])
+    ok = [d for d in docs if d["status"] == "ok"]
+    n_chunks = sum(d["chunks"] for d in ok)
+    langs = _source_languages()
+    by_lang: dict[str, dict] = {}
+    for d in docs:
+        d["language"] = langs.get(d["file"], "")
+        agg = by_lang.setdefault(d["language"] or "unknown", {"documents": 0, "chunks": 0, "pages": 0})
+        agg["documents"] += d["status"] == "ok"
+        agg["chunks"] += d["chunks"]
+        agg["pages"] += d.get("pages") or 0
+
+    report = {
+        "date": datetime.now().isoformat(timespec="seconds"),
+        "collection": collection,
+        "chunk_size": processor.chunk_size,
+        "chunk_overlap": processor.chunk_overlap,
+        "embedding_model": settings.embedding_model,
+        "pdf_backend": settings.pdf_backend,
+        "documents_total": len(docs),
+        "documents_ingested": len(ok),
+        "documents_failed": len(docs) - len(ok),
+        "chunks": n_chunks,
+        "avg_chunks_per_document": round(n_chunks / len(ok), 1) if ok else 0,
+        "avg_chunk_chars": round(sum(d["chunk_chars_total"] for d in ok) / n_chunks, 1) if n_chunks else 0,
+        "avg_chunk_tokens": round(sum(d["chunk_tokens_total"] for d in ok) / n_chunks, 1) if n_chunks else 0,
+        "min_chunk_tokens": min((d["chunk_tokens_min"] for d in ok), default=0),
+        "max_chunk_tokens": max((d["chunk_tokens_max"] for d in ok), default=0),
+        "chunks_with_page_number": sum(d["chunks_with_page"] for d in ok),
+        "pages_total": sum(d.get("pages") or 0 for d in docs),
+        "pages_missing": sum(len(d.get("missing_pages") or []) for d in docs),
+        "by_language": by_lang,
+        "failed": [{"file": d["file"], "reason": d.get("error", d["status"])}
+                   for d in docs if d["status"] != "ok"],
+        "elapsed_min": round(elapsed / 60, 1),
+        "per_document": docs,
+    }
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    Path(path).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info("Ingestion report written to {}", path)
 
 
 def _ingest_one(processor, src: Path, idx: int, total: int, counters: dict,
                 embed_texts_fn, upsert_chunks_fn, RetrievedChunk) -> None:
     label = "true" if "true_data" in str(src) else "noisy"
     logger.info("[{}/{}] start {} {}", idx, total, label, src.name)
+    record: dict = {"file": src.name, "label": label, "status": "failed", "chunks": 0}
+    counters.setdefault("documents", []).append(record)
+    t0 = time.time()
     try:
         chunks_meta = processor.process_document(str(src))
+        info = getattr(processor, "last_info", {}) or {}
+        record.update({
+            "pages": info.get("pages"),
+            "conversion": info.get("status"),
+            "missing_pages": info.get("missing_pages", []),
+        })
         if not chunks_meta:
             logger.warning("[{}/{}] {} {} → 0 chunks (skipped)", idx, total, label, src.name)
+            record.update(status="empty", error="0 chunks: no extractable text")
             counters["failed"] += 1
             return
         chunks = [
@@ -145,12 +217,27 @@ def _ingest_one(processor, src: Path, idx: int, total: int, counters: dict,
         upsert_chunks_fn(chunks, embeddings)
         counters["chunks"] += len(chunks)
         counters[f"{label}_ingested"] += 1
+        tokenizer = getattr(processor, "tokenizer", None)
+        tokens = [tokenizer.count_tokens(t) for t in texts] if tokenizer else []
+        record.update({
+            "status": "ok",
+            "chunks": len(chunks),
+            "chunk_chars_total": sum(len(t) for t in texts),
+            "chunk_tokens_total": sum(tokens),
+            "chunk_tokens_min": min(tokens, default=0),
+            "chunk_tokens_max": max(tokens, default=0),
+            "chunks_with_page": sum(1 for c in chunks if c.page_number is not None),
+        })
         if idx % 10 == 0 or idx == total:
             logger.info("  [{}/{}] progress — {} chunks so far",idx, total, counters["chunks"])
 
     except Exception as exc:  # noqa: BLE001
-        logger.warning("[{}/{}] FAILED {} {}: {}", idx, total, label, src.name, type(exc).__name__)
+        logger.warning("[{}/{}] FAILED {} {}: {}: {}", idx, total, label, src.name,
+                       type(exc).__name__, exc)
+        record["error"] = f"{type(exc).__name__}: {exc}"
         counters["failed"] += 1
+    finally:
+        record["seconds"] = round(time.time() - t0, 1)
 
 
 def run_migrations(conn: psycopg2.extensions.connection) -> None:
@@ -205,6 +292,10 @@ def main() -> None:
         "--recreate", action="store_true",
         help="Drop and recreate the target Qdrant collection before ingesting",
     )
+    parser.add_argument(
+        "--report", default=None,
+        help="Write ingestion stats JSON here, e.g. results/ingestion_512.json",
+    )
     args = parser.parse_args()
     if args.no_ingest and args.ingest_only:
         raise SystemExit("--no-ingest and --ingest-only cannot be used together")
@@ -233,7 +324,8 @@ def main() -> None:
         except ValueError:
             raise SystemExit(f"--noise-sample must be int or 'all', got {noise_arg!r}")
 
-    seed_docs(noise_sample_size=noise_arg, chunk_size=args.chunk_size, recreate=args.recreate)
+    seed_docs(noise_sample_size=noise_arg, chunk_size=args.chunk_size, recreate=args.recreate,
+              report=args.report)
 
 if __name__ == "__main__":
     main()
