@@ -3,6 +3,21 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.config import settings
+from app.security.injection_patterns import find_injection
+
+
+def _validate_user_text(v: str, field: str) -> str:
+    """Shared by ChatRequest and QueryRequest: non-empty, has letters, no injection phrase
+    (English, Hindi, Hinglish, Marathi patterns in app/security/injection_patterns.py)."""
+    v = v.strip()
+    if not v:
+        raise ValueError(f"{field} cannot be empty or whitespace only")
+    if find_injection(v):
+        raise ValueError(f"{field} contains potentially malicious content")
+    if re.match(r"^[\W_]+$", v):
+        raise ValueError(f"{field} must contain actual text content")
+    return v
+
 
 class ChatRequest(BaseModel):
     message: str = Field(
@@ -14,24 +29,7 @@ class ChatRequest(BaseModel):
     @field_validator("message")
     @classmethod
     def validate_message_content(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("Message cannot be empty or whitespace only")
-        injection_patterns = [
-            r"(?i)(ignore\s+previous|ignore\s+above|forget\s+your\s+instructions)",
-            r"(?i)(system\s*prompt|reveal\s+your\s+instructions|show\s+your\s+prompt)",
-            r"(?i)(you\s+are\s+now|new\s+instructions|override\s+previous)",
-            r"(?i)(<\s*script|javascript:|on\w+\s*=)",
-        ]
-
-        for pattern in injection_patterns:
-            if re.search(pattern, v):
-                raise ValueError("Message contains potentially malicious content")
-
-        if re.match(r"^[\W_]+$", v):
-            raise ValueError("Message must contain actual text content")
-
-        return v
+        return _validate_user_text(v, "Message")
 
 
 class RetrievedChunkPreview(BaseModel):
@@ -85,24 +83,7 @@ class QueryRequest(BaseModel):
     @field_validator("question")
     @classmethod
     def validate_question_content(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("Question cannot be empty or whitespace only")
-
-        injection_patterns = [
-            r"(?i)(ignore\s+previous|ignore\s+above|forget\s+your\s+instructions)",
-            r"(?i)(system\s*prompt|reveal\s+your\s+instructions|show\s+your\s+prompt)",
-            r"(?i)(you\s+are\s+now|new\s+instructions|override\s+previous)",
-            r"(?i)(<\s*script|javascript:|on\w+\s*=)",
-        ]
-        for pattern in injection_patterns:
-            if re.search(pattern, v):
-                raise ValueError("Question contains potentially malicious content")
-
-        if re.match(r"^[\W_]+$", v):
-            raise ValueError("Question must contain actual text content")
-
-        return v
+        return _validate_user_text(v, "Question")
 
 
 class RetrievedChunk(BaseModel):

@@ -75,7 +75,11 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
     `WEB_FALLBACK_ENABLED=false`; CRAG "incorrect" par web ki jagah chunks hata deta hai (→ refusal).
 11. **Self-RAG refusal bias.** `self_reflective.py` ka prompt refusal ("I don't have information") ko
     fail maanta hai aur regenerate karwata hai → unanswerable sawaalon par hallucination badhega. (P16)
-12. **Injection regex sirf English** (`models.py`), aur ChatRequest/QueryRequest mein duplicate. (P9)
+12. **(FIXED, P9)** ~~Injection regex sirf English + duplicate.~~ Ab `app/security/injection_patterns.py`
+    mein ek list (EN/HI/Hinglish/MR, 23 patterns), dono request models `_validate_user_text` share karte
+    hain. Purane dheele patterns ("ignore previous", "you are now", "system prompt", `on\w+=`) normal
+    sawaal bhi rok dete; naye ko instruction/prompt object ya role-change frame chahiye.
+    llm-guard `PromptInjection` (layer 2) abhi bhi English deberta hai → P14 mein naapna.
 14. **(FIXED, P7)** ~~PII redaction Hindi/Marathi sawaal bigaadta tha.~~ llm-guard `Sensitive` ka PERSON
     (English NER) "किसान", "महिला शेतकरी", "अहिल्या…" ko naam maan ke `<PERSON>` bana deta tha — 5 mein
     se 3 Devanagari smoke sawaal LLM tak bigde hue pahunchte. Ab PERSON off
