@@ -26,8 +26,8 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 - Docker: sirf `docker compose up -d postgres qdrant` (`app` service nahi chalate).
 - Migrations: sirf `seed/migrations/001_create_users.sql`. `003_seed_k8s_ops.sql` SKIP (K8s SQL demo).
 - Demo users: `scripts/seed_db.py` ki `DEMO_USERS` list (agent@demo.local, admin@demo.local).
-- **Scripts hamesha `uv run --env-file .env python ...` se chalao.** `scripts/seed_db.py` DATABASE_URL
-  `os.getenv` se padhta hai (default 5432 = dusre project ka DB!). Setup problem S1 dekho.
+- **Scripts hamesha `uv run --env-file .env python ...` se chalao.** `scripts/seed_db.py` ab DATABASE_URL
+  `app.config` (`.env`) se padhta hai aur connect se pehle host:port log karta hai (S1, fixed).
 - LLM provider: **Groq** (chat). Groq embeddings nahi deta → embeddings local GPU model:
   **`BAAI/bge-m3`** (1024-dim, 8192 tokens, CUDA fp16), `.env`: `EMBEDDING_BACKEND=local`,
   `EMBEDDING_MODEL`, `EMBEDDING_DIM=1024` (P2). Chat (P5): `LLM_PROVIDER=groq`,
@@ -38,7 +38,8 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 - Qdrant collection = `{QDRANT_COLLECTION_PREFIX}_{chunk_size}` → `coop_256`, `coop_512`, `coop_1024`.
 - Ingestion (Postgres ko chhoote bina):
   `uv run --env-file .env python scripts/seed_db.py --ingest-only --chunk-size 512 --noise-sample 0`
-  (`--recreate` = collection pehle drop karo). **`--ingest-only` ke bina migrations chalenge (S1).**
+  (`--recreate` = collection pehle drop karo). `--ingest-only` ke bina 001 migration + demo users bhi
+  chalenge (003 hamesha skip, S1).
 - Documents (P3): K8s docs `seed/docs/_k8s_backup/` mein (ingest nahi hote). Naye docs `seed/docs/true_data/`.
   Check + `data/sources.csv` sync: `uv run --env-file .env python scripts/check_docs.py --write-sources`
   (`--pdf-backend docling_parse` se dono backends compare).
@@ -89,14 +90,16 @@ Har **bada step** (P1, P2, …) ke baad `/clear` karo, taaki context saaf rahe.
 
 ### Setup problems (P1 mein mile, abhi fix nahi kiye)
 
-- **S1.** `scripts/seed_db.py` `.env` nahi padhta (`os.getenv("DATABASE_URL")`, default 5432), aur
-  `run_migrations` SAARI .sql files chalata hai (003 mein `DROP TABLE ... CASCADE`). Galat DB par chala to data udega.
+- **S1. (FIXED)** ~~`scripts/seed_db.py` `.env` nahi padhta, `run_migrations` SAARI .sql files chalata
+  (003 mein `DROP TABLE ... CASCADE`).~~ Ab `settings.database_url` (`.env`, port 5434), `SKIP_MIGRATIONS`
+  mein 003 (`tests/test_seed_db.py`).
 - **S2. (FIXED, P1 follow-up)** Rate limiter aur token budget ko Upstash Redis zaroori tha → `/auth/login`
   500 deta tha. Ab Upstash na ho to in-memory fallback (`tests/test_redis_fallback.py`).
   Dhyan do: login limit 5/min per IP hai (`AUTH_LOGIN_RATE_LIMIT_PER_MIN`) — P14 mein ek hi token reuse karo.
 - **S3. (FIXED, P5)** ~~`llm_service.py` import par OpenAI client~~ → `get_client()` lazy; `LLM_PROVIDER=groq`
   (Groq base_url), `LLM_MAX_RETRIES` (429 par SDK retry). `OPENAI_API_KEY` placeholder ab zaroori nahi.
-- **S4.** `middleware/auth.create_access_token`: `expires_delta_seconds` pass karne par `expire` undefined (bug).
+- **S4. (FIXED)** ~~`middleware/auth.create_access_token`: `expires_delta_seconds` pass karne par `expire`
+  undefined.~~ `expire` ab `if` ke bahar (`tests/test_auth.py`).
 - **S5. (FIXED, P5)** ~~Reranker har query par model load~~ → CrossEncoder model-name ke hisaab se cache (fp16 CUDA).
 - **S6.** Windows console (cp1252) Hindi/Marathi print karne par `UnicodeEncodeError` deta hai →
   scripts `PYTHONIOENCODING=utf-8` ke saath chalao (ya script mein `sys.stdout.reconfigure(encoding="utf-8")`).

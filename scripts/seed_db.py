@@ -3,16 +3,22 @@ import os
 import random
 import time
 from pathlib import Path
+from urllib.parse import urlparse
 
 import psycopg2
 from loguru import logger
 
+from app.config import settings
 from app.middleware.auth import hash_password
 
 
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/adv_rag")
+# From .env via app.config (an exported DATABASE_URL still wins), so the script uses the same
+# Postgres as the API (port 5434) instead of a hardcoded default that points at another DB.
+DATABASE_URL = settings.database_url
 MIGRATIONS_DIR = os.path.join(os.path.dirname(__file__), "..", "seed", "migrations")
+# 003 is the old K8s SQL demo: it starts with DROP TABLE ... CASCADE, so it never runs here.
+SKIP_MIGRATIONS = {"003_seed_k8s_ops.sql"}
 DOCS_DIR = os.path.join(os.path.dirname(__file__), "..", "seed", "docs")
 
 DEMO_USERS = [
@@ -244,6 +250,9 @@ def run_migrations(conn: psycopg2.extensions.connection) -> None:
     cur = conn.cursor()
     files = sorted([f for f in os.listdir(MIGRATIONS_DIR) if f.endswith(".sql")])
     for filename in files:
+        if filename in SKIP_MIGRATIONS:
+            logger.info("Skipping migration: {} (K8s SQL demo)", filename)
+            continue
         path = os.path.join(MIGRATIONS_DIR, filename)
         with open(path) as f:
             sql = f.read()
@@ -303,7 +312,8 @@ def main() -> None:
     if args.ingest_only:
         logger.info("--ingest-only set; skipping migrations + users.")
     else:
-        logger.info("Connecting to database...")
+        db = urlparse(DATABASE_URL)
+        logger.info("Connecting to database {}:{}{} ...", db.hostname, db.port, db.path)
         conn = psycopg2.connect(DATABASE_URL)
         logger.info("Running migrations...")
         run_migrations(conn)

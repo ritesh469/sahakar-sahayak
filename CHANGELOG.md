@@ -1091,3 +1091,28 @@ wala jawab. Known problem #11 ka seedha saboot (ek sawaal — paper mein "case" 
   sources (screenshot liya). Sidebar ka Marathi example bhi llm-guard ne roka — `docs/DEMO_SCRIPT.md`
   mein chetavani (code nahi badla).
 - **P19:** VIVA_NOTES ke saare "(LLM runs ke baad)" numbers bhar diye; README mein answer results.
+
+## Final to-dos — translations check, verified references, S1 + S4 fix (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** Project ke bache hue kaam ek-ek karke.
+
+- **Translations (machine check, native-speaker check nahi):** `eval/coop_questions.yaml` ke 76 base
+  sawaal x 4 bhasha par check: har base mein en/hi/mr/hinglish hain, type aur relevant_documents same,
+  Hinglish mein Devanagari nahi, English sawaal ke saare numbers translation mein hain, aur
+  `app/services/language.py` har sawaal ki label wali bhasha hi pehchaanta hai — **0 problem**.
+  Claude ne saare Hindi/Marathi padhe: matlab badalne wali galti nahi mili (sirf style, jaise
+  `adv-001-mr` "दुर्लक्षित कर" → "दुर्लक्ष कर" zyada natural). Native speaker ka check abhi bhi baaki;
+  koi sawaal badla to sirf us sawaal ke results dobara chalane honge.
+- **Paper references (P17):** saare `[CITATION NEEDED]` hataye, sirf verified sources se:
+  Census 2011 Paper 1 of 2018 (Hindi 43.63%, Marathi 6.86% — official PDF se padh ke),
+  Mukherjee & Pal 2019 (NSS 70th round: bima na karane wale kisanon mein 44.2% ko jaankari nahi thi),
+  Farmer.Chat, AgriGov (2026, EN/HI/MR scheme dataset), FIRE 2008, Hindi-BEIR, IndicIRSuite,
+  IndicXTREME, mixed-script IR (Gupta et al. 2014). Research gap ab in do sabse nazdeek kaamon
+  (Farmer.Chat, AgriGov) se fark saaf batata hai. Paper mein ab sirf author details baaki.
+- **S4 fix:** `create_access_token(expires_delta_seconds=...)` crash karta tha (`expire` sirf `if` ke
+  andar banta tha). Ab `if` ke bahar. Test: `tests/test_auth.py`.
+- **S1 fix:** `scripts/seed_db.py` ab DB address `.env` se (`settings.database_url`, port 5434) padhta
+  hai, connect se pehle host:port log karta hai, aur `003_seed_k8s_ops.sql` (DROP TABLE) kabhi nahi
+  chalata. Test: `tests/test_seed_db.py`. Asli DB par `--no-ingest` chala ke dekha: `localhost:5434`,
+  001 chala, 003 skip.
+- `pytest tests` → **141 passed** (137 + 4 naye).

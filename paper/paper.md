@@ -4,8 +4,7 @@
 
 > **Draft status (2026-09-30).** All experiments are complete, and every number is copied from
 > `results/*.csv` with the file named under each table. Before submission, still to do: author
-> details, the [CITATION NEEDED] references, and a native-speaker check of the Hindi, Marathi and
-> Hinglish questions (Section 12).
+> details and a native-speaker check of the Hindi, Marathi and Hinglish questions (Section 12).
 
 ---
 
@@ -46,9 +45,12 @@ India's cooperative sector and its welfare schemes are documented in Acts, rules
 operational guidelines and state government resolutions (GRs). The people these documents are
 meant for (farmers, members of primary agricultural credit societies (PACS), cooperative staff)
 often read Hindi or Marathi better than English, and frequently write in Hinglish, a Latin-script
-mix of Hindi and English. Language barriers therefore limit their access to reliable guidance on
-cooperative law and schemes **[CITATION NEEDED: a published source on awareness of cooperative
-or government schemes among farmers and the role of language]**.
+mix of Hindi and English. In the 2011 Census, 43.63% of India's population reported Hindi and
+6.86% Marathi as their language, while only about 0.26 million people reported English as their
+mother tongue [Census2011]. Awareness is a known barrier to scheme uptake: in the NSS 70th round
+(2012–13), 44.2% of the farmers who had not insured their crops said they were not aware of crop
+insurance, and another 17.5% did not know the facility was available [Mukherjee2019]. An
+assistant for these users therefore has to answer accurately in their languages.
 
 Large language models (LLMs) can answer such questions fluently, but a fluent wrong answer about a
 subsidy amount, an eligibility age or a deadline can cost a farmer money. Retrieval-augmented
@@ -103,12 +105,17 @@ Ragas metrics. We measure (4) by which guardrail layer stops each adversarial qu
 Published RAG techniques (hybrid search, reranking, HyDE [Gao2022], CRAG [Yan2024],
 Self-RAG [Asai2023]) are usually evaluated on English benchmarks. Multilingual retrieval
 benchmarks such as MIRACL [Zhang2022] evaluate retrieval within one language at a time, not a
-Hindi question against an English-only document collection. We did not find an evaluation of RAG
-for Indian cooperative-governance and scheme documents that (a) uses parallel questions in English,
-Hindi, Marathi and Hinglish, (b) separates same-script from cross-script retrieval, (c) measures
-hallucination and over-refusal per language, and (d) tests guardrails against non-English
-injection **[CITATION NEEDED: a literature search on Indian-language RAG and government-scheme
-chatbots should confirm or correct this claim]**. Practical issues of such corpora (damaged
+Hindi question against an English-only document collection. The closest systems are
+Farmer.Chat [Singh2024], a deployed multilingual RAG chatbot for agricultural advice (including
+Hindi in India) evaluated with Ragas faithfulness, context precision and answer rate aggregated
+over all languages, and AgriGov [Bilal2026], an English–Hindi–Marathi dataset curated from 50
+Indian government schemes for farmers. Farmer.Chat does not report results per language, for
+code-mixed questions or for prompt injection, and AgriGov, from its abstract, releases a dataset
+without evaluating a RAG system. In our (non-exhaustive) literature search we did not find an
+evaluation of RAG for Indian cooperative-governance and scheme documents that (a) uses parallel
+questions in English, Hindi, Marathi and Hinglish, (b) separates same-script from cross-script
+retrieval, (c) measures hallucination and over-refusal per language, and (d) tests guardrails
+against non-English injection. Practical issues of such corpora (damaged
 Devanagari text layers in official PDFs, English-trained named-entity recognisers in PII filters)
 are also rarely reported.
 
@@ -143,9 +150,20 @@ that the model can tell data from instructions. LLM Guard [LLMGuard] provides mo
 and output scanners (prompt injection, toxicity, banned topics, PII).
 
 **Multilingual retrieval and Indian languages.** MIRACL [Zhang2022] is a multilingual retrieval
-benchmark across 18 languages. **[CITATION NEEDED: work on Hindi/Marathi tokenization for IR,
-Indic retrieval or QA benchmarks, code-mixed (Hinglish) retrieval, and government-scheme or
-agricultural advisory chatbots in India. Add only papers whose title and link you have checked.]**
+benchmark across 18 languages. FIRE [Majumder2010] built the first TREC-style test collections
+for Indian-language IR, including Hindi and Marathi. Hindi-BEIR [Acharya2024] collects 15 Hindi
+retrieval datasets across 8 tasks, and IndicIRSuite [Haq2024] provides a machine-translated
+MS MARCO and monolingual ColBERT retrievers for 11 Indian languages, including Hindi and Marathi.
+IndicXTREME [Doddapaneni2023] is a human-supervised NLU benchmark for 20 Indic languages.
+Hinglish questions are transliterated, so Roman-script query words must match terms that
+documents write in Devanagari; Gupta et al. [Gupta2014] address this mixed-script retrieval
+problem by modelling terms from both scripts jointly.
+
+**Agricultural and government-scheme assistants.** Farmer.Chat [Singh2024] answers farmers'
+questions over expert-vetted documents in four countries and several languages, including Hindi,
+Odia and Telugu in India. AgriGov
+[Bilal2026] curates a trilingual (English, Hindi, Marathi) dataset of Indian government schemes
+for farmers, intended for question answering, retrieval and translation.
 
 **Document conversion.** Docling [Auer2024] converts PDFs into structured documents with page
 provenance, which we use for page-level citations.
@@ -711,35 +729,55 @@ it is trusted.
 
 ## References
 
+- [Acharya2024] A. Acharya, R. Murthy, V. Kumar, J. Sen. "Hindi-BEIR: A Large Scale Retrieval
+  Benchmark in Hindi." arXiv:2408.09437, 2024. https://arxiv.org/abs/2408.09437
 - [Asai2023] A. Asai, Z. Wu, Y. Wang, et al. "Self-RAG: Learning to Retrieve, Generate, and
   Critique through Self-Reflection." arXiv:2310.11511, 2023. https://arxiv.org/abs/2310.11511
 - [Auer2024] C. Auer, M. Lysak, A. Nassar, et al. "Docling Technical Report." arXiv:2408.09869,
   2024. https://arxiv.org/abs/2408.09869
 - [BGERerank] BAAI. "bge-reranker-v2-m3" (model card). https://huggingface.co/BAAI/bge-reranker-v2-m3
+- [Bilal2026] M. Bilal, G. Gopakumar. "AgriGov: A Structured Multilingual Dataset Curation for
+  Indian Government Schemes for Farmers." arXiv:2606.08272, 2026. https://arxiv.org/abs/2606.08272
+- [Census2011] Office of the Registrar General, India. "Census of India 2011, Paper 1 of 2018:
+  Language — India, States and Union Territories (Table C-16)." 2018.
+  https://censusindia.gov.in/nada/index.php/catalog/42458
 - [Chen2024] J. Chen, S. Xiao, P. Zhang, et al. "M3-Embedding: Multi-Linguality,
   Multi-Functionality, Multi-Granularity Text Embeddings Through Self-Knowledge Distillation."
   arXiv:2402.03216, 2024. https://arxiv.org/abs/2402.03216
 - [Cormack2009] G. V. Cormack, C. L. A. Clarke, S. Büttcher. "Reciprocal rank fusion outperforms
   Condorcet and individual rank learning methods." Proc. SIGIR 2009.
   https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf
+- [Doddapaneni2023] S. Doddapaneni, R. Aralikatte, G. Ramesh, et al. "Towards Leaving No Indic
+  Language Behind: Building Monolingual Corpora, Benchmark and Models for Indic Languages." Proc.
+  ACL 2023. https://aclanthology.org/2023.acl-long.693
 - [Es2023] S. Es, J. James, L. Espinosa-Anke, S. Schockaert. "Ragas: Automated Evaluation of
   Retrieval Augmented Generation." arXiv:2309.15217, 2023. https://arxiv.org/abs/2309.15217
 - [Gao2022] L. Gao, X. Ma, J. Lin, J. Callan. "Precise Zero-Shot Dense Retrieval without
   Relevance Labels." arXiv:2212.10496, 2022. https://arxiv.org/abs/2212.10496
+- [Gupta2014] P. Gupta, K. Bali, R. E. Banchs, M. Choudhury, P. Rosso. "Query Expansion for
+  Mixed-Script Information Retrieval." Proc. SIGIR 2014. doi:10.1145/2600428.2609622
+- [Haq2024] S. Haq, A. Sharma, O. Khattab, N. Chhaya, P. Bhattacharyya. "IndicIRSuite:
+  Multilingual Dataset and Neural Information Models for Indian Languages." Proc. ACL 2024
+  (Volume 2: Short Papers), pp. 501–509. doi:10.18653/v1/2024.acl-short.46
 - [Hines2024] K. Hines, G. Lopez, M. Hall, et al. "Defending Against Indirect Prompt Injection
   Attacks With Spotlighting." arXiv:2403.14720, 2024. https://arxiv.org/abs/2403.14720
 - [Lewis2020] P. Lewis, E. Perez, A. Piktus, et al. "Retrieval-Augmented Generation for
   Knowledge-Intensive NLP Tasks." arXiv:2005.11401, 2020. https://arxiv.org/abs/2005.11401
 - [LLMGuard] Protect AI. "LLM Guard: The Security Toolkit for LLM Interactions" (software).
   https://github.com/protectai/llm-guard
+- [Majumder2010] P. Majumder, M. Mitra, D. Pal, et al. "The FIRE 2008 Evaluation Exercise." ACM
+  Transactions on Asian Language Information Processing 9(3):1–24, 2010. doi:10.1145/1838745.1838747
+- [Mukherjee2019] S. Mukherjee, P. Pal. "On Improving Awareness about Crop Insurance in India."
+  Review of Agrarian Studies 9(1), 2019. doi:10.25003/RAS.09.01.0006
 - [RankBM25] D. Brown. "rank_bm25" (software). https://github.com/dorianbrown/rank_bm25
 - [Robertson2009] S. Robertson, H. Zaragoza. "The Probabilistic Relevance Framework: BM25 and
   Beyond." Foundations and Trends in Information Retrieval 3(4):333–389, 2009.
   doi:10.1561/1500000019
+- [Singh2024] N. Singh, J. Wang'ombe, N. Okanga, et al. "Farmer.Chat: Scaling AI-Powered
+  Agricultural Services for Smallholder Farmers." arXiv:2409.08916, 2024.
+  https://arxiv.org/abs/2409.08916
 - [Yan2024] S.-Q. Yan, J.-C. Gu, Y. Zhu, Z.-H. Ling. "Corrective Retrieval Augmented
   Generation." arXiv:2401.15884, 2024. https://arxiv.org/abs/2401.15884
 - [Zhang2022] X. Zhang, N. Thakur, O. Ogundepo, et al. "Making a MIRACL: Multilingual Information
   Retrieval Across a Continuum of Languages." arXiv:2210.09984, 2022.
   https://arxiv.org/abs/2210.09984
-- **[CITATION NEEDED]** Indian-language / code-mixed retrieval and government-scheme chatbot
-  papers (Sections 3 and 4).

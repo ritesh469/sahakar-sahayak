@@ -35,9 +35,9 @@ def create_access_token(
 ) -> str:
     if expires_delta_seconds is None:
         expires_delta_seconds = settings.jwt_expiration_minutes * 60
-        expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
-            seconds=expires_delta_seconds
-        )
+    expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
+        seconds=expires_delta_seconds
+    )
 
     payload = {
         "sub": username,
