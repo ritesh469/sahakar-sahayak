@@ -1132,3 +1132,8 @@ suggestions bhi nahi liye. Sheet mein ye record hai.
 - Paper (Section 7 + Limitations), README, VIVA_NOTES: "native-speaker check baaki" hataya; limitation
   ab "sirf ek reviewer (author)". Paper mein ab sirf department + institution baaki.
 - `validate_questions.py` OK, `pytest tests` → 141 passed.
+
+## Paper author line (2026-09-30)
+
+- `paper/paper.md`: author line "Ritesh Kumar, Department of Computer Engineering, BVPCOE"; draft-status
+  note se to-do hata diya. Paper mein ab koi placeholder ya `[CITATION NEEDED]` nahi.
