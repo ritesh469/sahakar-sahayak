@@ -1135,5 +1135,5 @@ suggestions bhi nahi liye. Sheet mein ye record hai.
 
 ## Paper author line (2026-09-30)
 
-- `paper/paper.md`: author line "Ritesh Kumar, Department of Computer Engineering, BVPCOE"; draft-status
+- `paper/paper.md`: author line "Ritesh Kumar, Department of Computer Engineering, BVPCOE, Pune"; draft-status
   note se to-do hata diya. Paper mein ab koi placeholder ya `[CITATION NEEDED]` nahi.

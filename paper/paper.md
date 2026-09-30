@@ -1,6 +1,6 @@
 # Multilingual and Hallucination-Aware Retrieval-Augmented Generation for Cooperative Governance and Government Scheme Assistance
 
-**Ritesh Kumar, Department of Computer Engineering, BVPCOE**
+**Ritesh Kumar, Department of Computer Engineering, BVPCOE, Pune**
 
 > **Draft status (2026-09-30).** All experiments are complete, and every number is copied from
 > `results/*.csv` with the file named under each table.
