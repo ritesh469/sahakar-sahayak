@@ -1,6 +1,6 @@
 # Multilingual and Hallucination-Aware Retrieval-Augmented Generation for Cooperative Governance and Government Scheme Assistance
 
-**[Author name(s)], [Department], [Institution]**
+**Ritesh Kumar, [Department], [Institution]**
 
 > **Draft status (2026-09-30).** All experiments are complete, and every number is copied from
 > `results/*.csv` with the file named under each table. Before submission, still to do: author
