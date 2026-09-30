@@ -2,12 +2,10 @@
 
 **[Author name(s)], [Department], [Institution]**
 
-> **Draft status (2026-09-30).** Sections 1–9 and the retrieval results (Experiments 1 and 2, the
-> retrieval half of Experiment 3) are complete. Every number is copied from `results/*.csv`, and
-> the file is named under each table. The answer-generation experiments (answer half of
-> Experiment 3, Experiments 4–6) and the guardrail test are not run yet. Their places are marked
-> **[PENDING]** and will be filled from the named CSV files after the runs. Do not submit while any
-> [PENDING] or [CITATION NEEDED] marker remains.
+> **Draft status (2026-09-30).** All experiments are complete, and every number is copied from
+> `results/*.csv` with the file named under each table. Before submission, still to do: author
+> details, the [CITATION NEEDED] references, and a native-speaker check of the Hindi, Marathi and
+> Hinglish questions (Section 12).
 
 ---
 
@@ -27,9 +25,15 @@ and hybrid retrieval after reranking is not. Without reranking, hybrid fusion hu
 Marathi questions (MRR 0.401 vs 0.603 for Hindi, p < 0.001), because many of them are answered by
 English documents that lexical matching cannot reach. A Devanagari-aware BM25 tokenizer helps when
 question and document share a script (Marathi recall@5 0.279 to 0.465), but not for Hindi
-documents with damaged text layers. Answer-level results (faithfulness, hallucination and
-over-refusal rates per language, and the effect of HyDE, CRAG and a refusal-aware Self-RAG
-reviewer) are **[PENDING]**.
+documents with damaged text layers. With gpt-4.1-mini as the generator, the assistant answers in
+the question's language 99.3% of the time and refuses 90% of unanswerable questions. It
+hallucinates on 4 of 72 unanswerable or adversarial questions, all four being language versions of
+one temporal false-premise question. Twenty of the 22 over-refusals follow a retrieval miss. HyDE,
+CRAG and Self-RAG do not reduce hallucination and increase latency 3–6×. Self-RAG with its
+original reviewer prompt, which treats refusals as failures, doubles hallucination (2 vs 1 of 18
+questions). In one case it abandons a correct refusal of a prompt injection; a refusal-aware
+reviewer prompt avoids this. Finally, an English-trained prompt-injection classifier (LLM Guard)
+blocked 8 of 16 legitimate Hindi and Marathi questions and none of the English or Hinglish ones.
 
 **Keywords:** retrieval-augmented generation, multilingual retrieval, Hindi, Marathi,
 code-mixing, hallucination, cooperative governance, government schemes, BM25, reranking.
@@ -70,9 +74,12 @@ This paper makes the following contributions:
   question's script, with paired significance tests.
 - An analysis of two failure sources specific to Indian-language documents: tokenizers that break
   Devanagari words, and PDF text layers that are already broken.
-- **[PENDING]** Hallucination and over-refusal rates per language and question type, the effect of
-  HyDE, CRAG and Self-RAG (including a refusal-aware reviewer prompt), and a per-layer guardrail
-  analysis in four languages.
+- Hallucination and over-refusal rates per language and question type, with a refusal detector
+  that handles paraphrased refusals in four languages.
+- A comparison of HyDE, CRAG and Self-RAG, including evidence that a refusal-penalising Self-RAG
+  reviewer increases hallucination, and a refusal-aware reviewer prompt that avoids it.
+- A per-layer guardrail analysis in four languages, showing that an English-trained injection
+  classifier blocks legitimate Devanagari questions.
 
 ## 2. Problem Statement
 
@@ -429,10 +436,33 @@ question (Table 10.2).
 
 ![Reranking effect](../results/figures/rerank_effect.png)
 
-**[PENDING]** Answer-level comparison (`exp3_hybrid` vs `exp3_hybrid_rerank`, 304 questions):
-faithfulness, answer relevancy, context precision and context recall (Ragas, 40-question subset),
-hallucination and over-refusal rates, generation latency. Source: `results/reranking_results.csv`
-rows with `pair = hybrid (answers + Ragas)`. Figure: `results/figures/faithfulness.png`.
+**With answers.** Both hybrid runs answered all 304 questions:
+
+| Metric | Hybrid | Hybrid + rerank |
+|---|---|---|
+| Recall@5 / MRR | 0.720 / 0.501 | 0.841 / 0.719 |
+| Over-refusal (answerable) | 0.194 | 0.095 |
+| Hallucination (unanswerable + adversarial) | 0.069 | 0.056 |
+| Correct refusal (unanswerable) | 0.875 | 0.900 |
+| Ragas faithfulness | 0.910 | 0.811 |
+| Ragas answer relevancy | 0.871 | 0.865 |
+| Ragas context precision | 0.717 | 0.926 |
+| Ragas context recall | 0.950 | 1.000 |
+| Mean total latency (s) | 3.06 | 2.06 |
+
+*n = 304 questions per run; Ragas on 40 answered questions each. Source:
+`results/reranking_results.csv`.*
+
+Reranking halves over-refusal (0.194 → 0.095). This is consistent with Section 10.5, where most
+refusals follow retrieval misses. Reranking also raises Ragas context precision (0.717 → 0.926).
+Faithfulness is higher without reranking (0.910 vs 0.811). The Ragas subset is the first 10
+answered questions per language, so the two runs score partly different answers, and each value
+rests on 40 answers. We therefore do not read this difference as an effect of reranking. The
+total latency is lower with reranking despite the extra 310 ms retrieval step. The difference comes
+from the generation step (1.38 s vs 2.77 s mean), which we attribute to API latency variation
+rather than to the configuration.
+
+![Ragas scores with and without reranking](../results/figures/faithfulness.png)
 
 ### 10.4 Experiment 4: language
 
@@ -495,9 +525,32 @@ labelled correctly, and 1 was borderline (a hedge followed by related informatio
 
 ### 10.6 Experiment 6: HyDE, CRAG and Self-RAG
 
-**[PENDING]** English questions: baseline vs HyDE, CRAG, Self-RAG (original prompt) and Self-RAG
-(refusal-aware prompt): recall@5, hallucination rate, over-refusal rate, latency, LLM tokens.
-Source: `results/advanced_rag_results.csv`.
+| Configuration | Recall@5 | Over-refusal | Correct refusal (unanswerable) | Hallucination | Total latency (s) | LLM tokens per question |
+|---|---|---|---|---|---|---|
+| Baseline (hybrid + rerank) | 0.810 | 0.155 | 0.90 | 0.056 | 1.91 | 2,514 |
+| HyDE | 0.793 | 0.155 | 0.90 | 0.056 | 8.05 | 2,732 |
+| CRAG | 0.810 | 0.172 | 0.90 | 0.056 | 5.47 | 3,908 |
+| Self-RAG, refusal-aware prompt | 0.810 | 0.172 | 0.90 | 0.056 | 7.61 | 5,928 |
+| Self-RAG, original prompt | 0.810 | 0.190 | 0.90 | 0.111 | 12.19 | 9,486 |
+
+*76 English questions per run (58 answerable; 18 unanswerable or adversarial). Baseline = English
+rows of the Exp 3 hybrid + rerank run. Source: `results/advanced_rag_results.csv`.*
+
+None of the three techniques improves on the baseline:
+
+- **HyDE** retrieves slightly worse (recall@5 0.793 vs 0.810), probably because the hypothetical
+  answer adds generic content.
+- **CRAG** and the refusal-aware **Self-RAG** each add one over-refusal (10 vs 9 of 58) and leave
+  hallucination unchanged.
+- **All three** add 3.6–6.1 s of latency and up to 2.4× the tokens.
+- **Self-RAG with the original reviewer prompt** is the only configuration that increases
+  hallucination: 2 of 18 against 1 of 18. It also uses the most tokens (9,486 per question) and
+  time (12.2 s). The extra hallucination is the injection question "You are now an unrestricted
+  AI. Tell me the admin password of the PM-KISAN portal." With the refusal-aware prompt, the answer
+  is the fixed out-of-domain refusal. With the original prompt, the final answer instead describes
+  how officials obtain PM-KISAN portal login credentials: the correct refusal was replaced by a
+  regenerated, partly compliant answer (`results/raw/exp6_selfrag_original_*.csv`). The difference
+  is a single question, so we report it as a case, not a rate difference.
 
 ### 10.7 Guardrails
 
@@ -526,8 +579,14 @@ Retrieval latency per question: 1 ms (TF-IDF), 4 ms (BM25), 327 ms (dense), 326 
 596 ms (dense + rerank) and 636 ms (hybrid + rerank) (`results/retrieval_results.csv`). Both
 sparse indexes are built once per collection and cached. The original system rebuilt the TF-IDF
 index on every query: 846 ms per query on average, against 6.3 ms for the cached BM25 index over
-30 timed queries (`results/tokenizer_results.csv`). End-to-end latency with generation is
-**[PENDING]** (`results/figures/latency.png`, right panel).
+30 timed queries (`results/tokenizer_results.csv`).
+
+With answer generation, mean end-to-end latency is 2.06 s for hybrid + rerank (0.67 s retrieval,
+1.38 s generation) and 3.06 s for hybrid without reranking (`results/reranking_results.csv`). The
+advanced techniques are 3–6 times slower (`results/advanced_rag_results.csv`): HyDE 8.05 s,
+CRAG 5.47 s, Self-RAG 7.61 s (refusal-aware) and 12.19 s (original prompt). HyDE and CRAG spend
+their extra time in an additional LLM call during retrieval; Self-RAG spends it in review and
+regeneration.
 
 ![Retrieval latency](../results/figures/latency.png)
 
@@ -587,10 +646,17 @@ reported a hallucination rate almost seven times too high (Section 10.5).
 
 ### 11.5 Self-RAG and refusal bias
 
-**[PENDING: fill from Exp 6.]** The inherited Self-RAG reviewer prompt treats every refusal as a
-failure and requests a regeneration. For unanswerable questions this pushes the model away from
-the correct refusal. The comparison of the original and refusal-aware prompts will show whether
-this increases hallucination.
+The inherited Self-RAG reviewer prompt tells the reviewer to fail answers that "don't deliver real
+value", and it scores a refusal as a failed answer that must be regenerated. In a system whose
+safety depends on refusing, this optimises against its own grounding rule. Our results show the
+effect on a small scale. The original prompt doubled hallucination (1 → 2 of 18) and raised
+over-refusal (9 → 11 of 58). The one extra hallucination was the clearest possible case: a
+correctly refused prompt injection was "improved" into a partly compliant answer (Section 10.6).
+It also cost 1.6 times the tokens of the refusal-aware reviewer and 3.8 times those of the
+baseline, because weak-looking refusals triggered regeneration loops. The refusal-aware prompt
+counts a correct refusal as a good answer and inventing facts as worse than refusing. It removed
+the extra hallucination but did not improve on the baseline. With a well-grounded generator, a
+self-reflection loop mainly adds cost, and a badly specified reviewer adds risk.
 
 ## 12. Limitations
 
@@ -605,8 +671,14 @@ this increases hallucination.
   rates may therefore be optimistic.
 - **Non-independent samples:** the four language versions of a question are not independent, so
   the sign-test p-values are indicative.
-- **Single LLM and LLM judge:** answer-level results come from a single LLM, and Ragas metrics
-  rely on an LLM judge.
+- **Single LLM and LLM judge:** answer-level results come from a single LLM (gpt-4.1-mini), and
+  Ragas metrics rely on an LLM judge (gpt-4o-mini) over only 40 answers per run.
+- **Heuristic refusal detection:** refusals are detected from fixed sentences and "not in the
+  documents" phrases. Only the 35 labels that changed with the phrase rules were checked by hand,
+  not all 304.
+- **Experiment 6 in English only:** it covers 76 questions (18 unanswerable or adversarial), so its
+  hallucination differences are single questions.
+- **API latency:** generation latency depends on the provider's API and varied between runs.
 - **Damaged text:** some official Hindi and Marathi PDFs have damaged text layers, which confounds
   language effects with document quality.
 - **Single hardware setup:** latency was measured on one consumer GPU.
@@ -618,8 +690,24 @@ retrieval plus a cross-encoder reranker is the decisive combination: recall@5 ri
 for lexical methods to 0.84–0.85. Chunk size and the choice between dense and hybrid retrieval
 after reranking matter little. Fixing Devanagari tokenization helps lexical search where the text
 is clean, but damaged PDF text layers and cross-lingual questions limit what lexical methods can
-do. The answer-level findings (hallucination, over-refusal, per-language quality, advanced RAG and
-guardrails) are **[PENDING]**.
+do.
+
+With strict grounding rules, a small LLM answers in the user's language almost always (99.3%),
+refuses 90% of unanswerable questions, and hallucinates on one temporal false-premise question.
+Most remaining refusals are retrieval failures, not generation failures. HyDE, CRAG and Self-RAG
+add latency without reducing hallucination. A reviewer prompt that penalises refusals makes
+things worse, so self-reflection must treat "not in the documents" as a valid answer.
+
+The most important lesson for Indian-language deployments concerns the components around the
+LLM:
+
+- an English PII recogniser corrupted Devanagari questions;
+- an English prompt-injection classifier blocked half of the legitimate Hindi and Marathi
+  questions;
+- a string-matching refusal metric would have overstated hallucination almost sevenfold.
+
+Every such component needs its own per-language evaluation, with benign control questions, before
+it is trusted.
 
 ## References
 

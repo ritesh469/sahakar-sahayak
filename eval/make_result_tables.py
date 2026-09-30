@@ -222,10 +222,11 @@ def reranking(summ: dict) -> list[dict]:
             if cfg not in summ:
                 continue
             r = summ[cfg]
+            ragas_n = sum(x.get("faithfulness") not in (None, "") for x in load_raw(r))
             out.append({
                 **pick(r, RUN_COLS), "experiment": "exp3_reranking", "pair": pair,
                 "method": method(r), "rerank": r["rerank"], **pick(r, RETRIEVAL_COLS),
-                **pick(r, [*ANSWER_COLS, "refusal_rate_unanswerable"]),
+                **pick(r, [*ANSWER_COLS, "refusal_rate_unanswerable"]), "ragas_n": ragas_n,
                 **pick(r, ["retrieval_latency_mean_s", "generation_latency_mean_s",
                            "total_latency_mean_s"]),
                 **pick(r, MODEL_COLS),

@@ -168,7 +168,7 @@ def faithfulness(rer) -> None:
     metrics = [("faithfulness", "Faithfulness"), ("answer_relevancy", "Answer relevancy"),
                ("context_precision", "Context precision"), ("context_recall", "Context recall")]
     fig, ax = plt.subplots(figsize=(9, 4.4))
-    series = [(f"rerank {'on' if r['rerank'] == 'True' else 'off'} ({r['config']}, n={r['questions']})",
+    series = [(f"rerank {'on' if r['rerank'] == 'True' else 'off'} ({r['config']}, n={r.get('ragas_n') or '?'} answers)",
                [num(r.get(m)) for m, _ in metrics], ORDINAL_BLUE[2 if r["rerank"] == "True" else 0])
               for r in rows]
     grouped_bars(ax, [label for _, label in metrics], series, ylim=(0, 1.12))
@@ -219,12 +219,12 @@ def hallucination_rate(hal, adv) -> None:
 def latency(ret, rer, adv) -> None:
     if not ret:
         return skip("latency.png", "results/retrieval_results.csv missing")
-    answer_rows = [(f"{r['method']}\n({r['config']})", r) for r in (rer or [])
+    answer_rows = [(r["method"].replace(" + ", "\n+ "), r) for r in (rer or [])
                    if num(r.get("generation_latency_mean_s")) is not None]
-    answer_rows += [(r["feature"].replace(", ", ",\n"), r) for r in (adv or [])
+    answer_rows += [(r["feature"].replace(", ", ",\n").replace(" prompt", "\nprompt"), r) for r in (adv or [])
                     if num(r.get("generation_latency_mean_s")) is not None and r["config"].startswith("exp6")]
     panels = 2 if answer_rows else 1
-    fig, axes = plt.subplots(1, panels, figsize=(8 * panels, 4.4), squeeze=False)
+    fig, axes = plt.subplots(1, panels, figsize=(8.5 * panels, 4.6), squeeze=False)
     ax = axes[0][0]
     grouped_bars(ax, [r["method"].replace(" + ", "\n+ ") for r in ret],
                  [("retrieval", [1000 * num(r["retrieval_latency_mean_s"]) for r in ret], SERIES[0])],

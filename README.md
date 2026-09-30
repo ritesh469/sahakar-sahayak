@@ -158,7 +158,23 @@ Retrieval, 232 answerable questions (58 per language), chunk size 512
 - Chunk size 256, 512 or 1024 makes no significant difference.
 - Many Hindi and Marathi questions are answered by an English PDF, where word matching (BM25)
   cannot help. Without the reranker, hybrid search is worse than dense search alone for these questions.
-- Answer quality, hallucination, language-wise answers and guardrail results come after the LLM runs.
+
+Answers, hybrid + rerank, `gpt-4.1-mini` (judge `gpt-4o-mini`), 304 questions
+([results/multilingual_results.csv](results/multilingual_results.csv),
+[results/hallucination_results.csv](results/hallucination_results.csv),
+[results/advanced_rag_results.csv](results/advanced_rag_results.csv),
+[results/security_results.csv](results/security_results.csv)):
+
+- The answer is in the question's language 99.3% of the time, including Hinglish.
+- 90% of unanswerable questions are refused. Hallucination is 4 of 72 unanswerable or adversarial
+  questions, all from one temporal false-premise question in four languages. Over-refusal is 9.5%,
+  and 20 of the 22 over-refusals happened when retrieval missed.
+- Ragas scores: faithfulness 0.81, answer relevancy 0.86, context precision 0.93, context
+  recall 1.00. Mean latency is 2.1 s per question.
+- HyDE, CRAG and Self-RAG do not reduce hallucination and are 3–6× slower. Self-RAG with the
+  original refusal-penalising reviewer doubles hallucination (1 to 2 of 18).
+- Guardrails: no adversarial question succeeded. However, LLM Guard's English prompt-injection
+  model blocked 8 of 16 normal Hindi and Marathi questions.
 
 Graphs: [results/figures/](results/figures/).
 

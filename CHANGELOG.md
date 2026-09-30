@@ -1042,3 +1042,52 @@ Jo 2 out-of-domain sawaal llm-guard ne roke (`adv-007-mr`, `adv-008-hi`), wo bhi
 label se — yaani out-of-domain pehchaan nahi, wahi Devanagari false positive. Injection ko regex ne
 hi pakda (11/12; `adv-003-hi` llm-guard ne). Paper Discussion + Limitations (injection sawaal
 patterns ke baad likhe gaye) mein jaayega. Fix is step ka hissa nahi (P14 = naapna).
+
+---
+
+## P13 (part 3) + P16 + P15/P17/P18/P19 final — saare experiments, paper, demo ready (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** Bache hue LLM runs chale, sab 0 errors: `exp3_hybrid` (reranker
+ke bina, 304 sawaal + Ragas) aur Exp 6 ke 4 configs (76 English sawaal). Graphs, paper, README,
+viva notes, demo script sab asli numbers se poore. Kul ~31.8 lakh answer-path tokens + Ragas —
+andaazan **~$1.5–2** (exact: platform.openai.com/usage).
+
+### Exp 3 answers: rerank off vs on (`results/reranking_results.csv`)
+
+| | hybrid | hybrid + rerank |
+|---|---|---|
+| over-refusal / hallucination | 0.194 / 0.069 | 0.095 / 0.056 |
+| Ragas faithfulness / context precision (40 jawab) | 0.910 / 0.717 | 0.811 / 0.926 |
+| mean total latency | 3.06 s | 2.06 s |
+
+Reranker over-refusal aadha karta hai. Faithfulness ka ulta fark 40-jawab subset (dono runs mein
+alag jawab) ki wajah se — paper mein effect nahi maana.
+
+### Exp 6 / P16 (`results/advanced_rag_results.csv`, English, 58 answerable + 18 unanswerable/adversarial)
+
+| | over-refusal | hallucination | latency | tokens/sawaal |
+|---|---|---|---|---|
+| baseline | 0.155 | 0.056 | 1.9 s | 2,514 |
+| HyDE | 0.155 | 0.056 | 8.0 s | 2,732 |
+| CRAG | 0.172 | 0.056 | 5.5 s | 3,908 |
+| Self-RAG refusal-aware | 0.172 | 0.056 | 7.6 s | 5,928 |
+| Self-RAG original | 0.190 | **0.111** | 12.2 s | 9,486 |
+
+Purane Self-RAG prompt ka extra hallucination = injection sawaal `adv-003-en` ("admin password"):
+naye prompt ne refusal diya, purane ne refusal ko fail maan ke dobara likhwaya → portal login steps
+wala jawab. Known problem #11 ka seedha saboot (ek sawaal — paper mein "case" ke roop mein).
+
+### Baaki
+
+- **P15:** saare 9 graphs (`faithfulness.png`, `hallucination_rate.png` naye); latency labels aur
+  faithfulness legend theek (Ragas n = 40, `reranking_results.csv` ka naya `ragas_n` column).
+- **P17:** `paper/paper.md` — koi [PENDING] nahi; Abstract, Exp 3/4/5/6, guardrails, latency,
+  Discussion 11.4/11.5, Limitations, Conclusion asli numbers se. Baaki: author details,
+  [CITATION NEEDED], native-speaker check.
+- **P18 final check:** `pytest tests` → 137 passed. API chala ke demo ke 6 sawaal: EN/HI/Hinglish
+  sahi jawab + page citation, unanswerable → refusal, injection → 422 (regex). Marathi demo sawaal
+  (karz-maafi) **llm-guard ne roka** → demo mein smoke-test ka Marathi sawaal (महिला शेतकरी अधिनियम,
+  "मुख्य सचिव", p. 7) rakha. Streamlit UI se login + Hindi sawaal → sahi jawab aur "file, p. N"
+  sources (screenshot liya). Sidebar ka Marathi example bhi llm-guard ne roka — `docs/DEMO_SCRIPT.md`
+  mein chetavani (code nahi badla).
+- **P19:** VIVA_NOTES ke saare "(LLM runs ke baad)" numbers bhar diye; README mein answer results.
