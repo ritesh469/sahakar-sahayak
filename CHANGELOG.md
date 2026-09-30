@@ -1116,3 +1116,19 @@ wala jawab. Known problem #11 ka seedha saboot (ek sawaal — paper mein "case" 
   chalata. Test: `tests/test_seed_db.py`. Asli DB par `--no-ingest` chala ke dekha: `localhost:5434`,
   001 chala, 003 skip.
 - `pytest tests` → **141 passed** (137 + 4 naye).
+
+## Native-speaker check of the translations (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** Ritesh Kumar (native speaker) ne review sheet
+`eval/drafts/p10_step2_translation_review.xlsx` (Hindi / Marathi / Hinglish, 76-76 sawaal, English ke
+saath) dekh ke saari **228 lines "Sahi"** batayi — koi translation nahi badla, Claude ke 5 style
+suggestions bhi nahi liye. Sheet mein ye record hai.
+
+- `scripts/build_coop_questions.py` + `eval/drafts/p10_step2_translations.yaml`: note ab "checked by a
+  native speaker, approved unchanged"; `eval/coop_questions.yaml` dobara bana — sirf `notes` badle
+  (228), sawaal ka text bilkul same → **koi experiment dobara chalane ki zaroorat nahi**.
+- `verified: false` rakha: expected answers abhi bhi sirf Claude ne documents se milaye hain, kisi
+  insaan ne nahi.
+- Paper (Section 7 + Limitations), README, VIVA_NOTES: "native-speaker check baaki" hataya; limitation
+  ab "sirf ek reviewer (author)". Paper mein ab sirf department + institution baaki.
+- `validate_questions.py` OK, `pytest tests` → 141 passed.

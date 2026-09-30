@@ -3,8 +3,8 @@
 **Ritesh Kumar, [Department], [Institution]**
 
 > **Draft status (2026-09-30).** All experiments are complete, and every number is copied from
-> `results/*.csv` with the file named under each table. Before submission, still to do: author
-> details and a native-speaker check of the Hindi, Marathi and Hinglish questions (Section 12).
+> `results/*.csv` with the file named under each table. Before submission, still to do: department
+> and institution in the author line.
 
 ---
 
@@ -311,8 +311,9 @@ more than one gold document, typically a parallel language version. By the first
 32 base questions are answered from an English document, 15 from Marathi, 8 from a bilingual and
 3 from a Hindi document. So most Hindi and Marathi question versions must be answered across
 languages. A validator checks that each supporting text occurs on the stated page. The Hindi,
-Marathi and Hinglish versions were produced by translation and have **not yet been verified by
-native speakers** (all 304 questions are `verified: false`). This is a limitation (Section 12).
+Marathi and Hinglish versions were produced by LLM translation and then checked by a native
+speaker (the author), who approved all 228 translated questions unchanged. The expected answers
+have not been reviewed by a person (all 304 questions are `verified: false`); see Section 12.
 
 ## 8. Experimental Setup
 
@@ -680,10 +681,11 @@ self-reflection loop mainly adds cost, and a badly specified reviewer adds risk.
 
 - **Small dataset:** 23 documents and 76 base questions; per-language subsets have 58 answerable
   questions, so small differences are not significant.
-- **Unverified translations and answers:** the Hindi, Marathi and Hinglish questions were machine
-  translated and not yet checked by native speakers. The gold evidence (file, page, supporting text)
-  is shared by the four versions and was checked automatically. The expected answers have not yet
-  been reviewed by a person.
+- **Single translation reviewer; unverified answers:** the Hindi, Marathi and Hinglish questions
+  were machine translated and checked by one native speaker, the author, who approved all 228
+  unchanged; an independent second reviewer would make this check stronger. The gold evidence
+  (file, page, supporting text) is shared by the four versions and was checked automatically. The
+  expected answers have not yet been reviewed by a person.
 - **Question authorship:** the questions were written by the system builders, who also wrote the
   injection patterns, and the injection questions were written after the patterns. Guardrail block
   rates may therefore be optimistic.

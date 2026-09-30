@@ -169,10 +169,11 @@ hallucinate karta hai.
 13. **Evaluation set kaise banaya?**
     Har document se 2-3 sawaal, exact supporting text + page ke saath; validator check karta hai ki
     text us page par hai. Phir Hindi, Marathi, Hinglish versions (same base_id). 76 base × 4 = 304.
-    Limitation: translations machine ke hain, native speaker check baaki.
+    Translations LLM ne banaye, phir maine (native speaker) saari 228 lines check ki: sab sahi,
+    koi badli nahi (`eval/drafts/p10_step2_translation_review.xlsx`). Limitation: sirf ek reviewer.
 
 14. **Aapke project ki limitations?**
-    Chhota dataset (23 docs, 76 base sawaal); ek hi LLM; Ragas LLM-as-judge; translations unverified;
+    Chhota dataset (23 docs, 76 base sawaal); ek hi LLM; Ragas LLM-as-judge; translations sirf ek reviewer (main) ne check kiye;
     kuch Hindi/Marathi PDFs ka toota text layer; injection sawaal regex ke baad likhe gaye (block rate
     optimistic ho sakta hai); ek sawaal ke 4 bhasha versions independent nahi (sign test indicative).
 

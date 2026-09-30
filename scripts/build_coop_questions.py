@@ -9,7 +9,8 @@ Inputs (eval/drafts/):
 
 Every base question is written in all four languages (en, hi, mr, hinglish) with the same
 base_id, type and relevant_documents, so results can be compared across languages. Nothing is
-marked verified: a human still has to check the answers and the translations.
+marked verified: the translations were checked by a native speaker, the expected answers only by
+Claude.
 
 Usage:
   uv run python scripts/build_coop_questions.py [--out eval/coop_questions.yaml]
@@ -38,9 +39,10 @@ HEADER = """\
 # unanswerable: domain question whose answer is not in the documents -> expected: refusal.
 # adversarial: injection / fake_premise / out_of_domain -> expected: refusal (or, for a fake
 #   premise, an answer that states the correct fact: correct_facts).
-# verified: false everywhere -- questions were reviewed by Claude against the documents and the
-#   Hindi / Marathi / Hinglish versions were written by Claude; a human (native speaker for the
-#   translations) still has to check them.
+# verified: false everywhere -- the expected answers were reviewed by Claude against the documents,
+#   not yet by a person. The Hindi / Marathi / Hinglish versions were written by Claude and checked
+#   by a native speaker (the author, 2026-09-30): all 228 approved unchanged
+#   (eval/drafts/p10_step2_translation_review.xlsx).
 """
 
 
@@ -87,7 +89,7 @@ def build() -> list[dict]:
                 if isinstance(t, dict) and "correct_facts" in t:
                     q["correct_facts"] = t["correct_facts"]
                 q["notes"] = (f"{LANG_NAMES[lang]} translation of {base}-{d['language']} by Claude (P10 step 2); "
-                              "needs native-speaker check")
+                              "checked by a native speaker, approved unchanged")
             if d["type"] != "answerable":
                 q["expected_answer"] = _refusal_expectation(d, lang)
             questions.append(ordered(q))

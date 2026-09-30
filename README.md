@@ -64,8 +64,8 @@ refusal-aware prompt).
   ([results/ingestion_*.json](results/)).
 - **Evaluation set:** [eval/coop_questions.yaml](eval/coop_questions.yaml): 304 questions =
   76 base questions × 4 languages (58 answerable, 10 unanswerable, 8 adversarial per language).
-  The Hindi, Marathi and Hinglish versions are machine-made and still need a native-speaker check
-  (`verified: false`).
+  The Hindi, Marathi and Hinglish versions are machine-made and were checked by a native speaker
+  (all 228 approved unchanged); the expected answers are not yet human-reviewed (`verified: false`).
 
 ## Setup
 
@@ -193,7 +193,7 @@ paper/          paper draft
 
 ## Limitations
 
-The evaluation set is small (76 base questions), its translations are not yet verified by native
-speakers, the answers come from a single LLM, and Ragas uses an LLM as a judge. Several Hindi and
+The evaluation set is small (76 base questions), its translations were checked by only one native
+speaker, the answers come from a single LLM, and Ragas uses an LLM as a judge. Several Hindi and
 Marathi PDFs have a damaged text layer, which hurts retrieval for those documents. The full list is
 in the paper and in [CLAUDE.md](CLAUDE.md) ("Known problems").

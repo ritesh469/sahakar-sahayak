@@ -1,5 +1,6 @@
-# P10 step 2: translations of the approved questions (written by Claude, NOT yet checked by a
-# native speaker). base_id -> language -> question. For fake_premise questions a language may give
+# P10 step 2: translations of the approved questions (written by Claude; checked by a native
+# speaker, the author, on 2026-09-30: all approved unchanged, see p10_step2_translation_review.xlsx).
+# base_id -> language -> question. For fake_premise questions a language may give
 # {question, correct_facts}: regexes of the correct fact in the language the answer will be in.
 # scripts/build_coop_questions.py merges this file with the step 1 / step 3 drafts into
 # eval/coop_questions.yaml.
