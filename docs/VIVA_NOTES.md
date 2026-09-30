@@ -41,7 +41,7 @@ hallucinate karta hai.
 | `app/security/input_guard.py`, `content_moderation.py` | llm-guard: PromptInjection, Toxicity, BanTopics scanner; PII (email, phone, card) redaction. PERSON band hai kyunki English NER "किसान" ko naam samajhta tha. |
 | `app/services/hyde.py`, `crag.py`, `self_reflective.py` | Advanced RAG (default band): HyDE (pehle nakli jawab bana ke usse search), CRAG (chunks ko grade karo, bekaar ho to hata do → refusal), Self-RAG (jawab ka review, zaroorat ho to dobara). |
 | `app/services/llm_service.py` | Groq ya OpenAI client, token count, reasoning models ke liye settings. |
-| `scripts/streamlit_app.py` | UI: login, 4 example sawaal, search mode, rerank, jawab ke neeche "file, p. N" sources. |
+| `scripts/streamlit_app.py` | Chat UI: sign-in, 4 example sawaal, search settings (default hybrid + rerank), jawab ke neeche "file, p. N" source stamps, refusal / block par saaf message. Rang aur fonts `.streamlit/config.toml` mein. |
 
 ### Evaluation
 

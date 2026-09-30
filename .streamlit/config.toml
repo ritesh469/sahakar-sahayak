@@ -1,0 +1,24 @@
+# Look of the Sahakar Sahayak UI (scripts/streamlit_app.py). Custom classes (source stamps,
+# wordmark, notices) are styled in the app's _CSS.
+
+[theme]
+base = "light"
+primaryColor = "#5A3D8A"            # stamp violet: buttons, focus, source stamps
+backgroundColor = "#F4F6F3"         # grey-green file paper
+secondaryBackgroundColor = "#E8ECE6"
+textColor = "#1C2433"
+borderColor = "#D3D8D0"
+linkColor = "#5A3D8A"
+violetColor = "#5A3D8A"
+greenColor = "#2F6D4F"
+orangeColor = "#B7791F"
+baseRadius = "0.5rem"
+font = "Mukta:https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&display=swap, Nirmala UI, sans-serif"
+codeFont = "IBM Plex Mono:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap, monospace"
+
+[theme.sidebar]
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F4F6F3"
+
+[client]
+toolbarMode = "minimal"

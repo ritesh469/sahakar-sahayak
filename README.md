@@ -112,7 +112,7 @@ uv run --env-file .env uvicorn app.main:app --host 127.0.0.1 --port 8001
 uv run --env-file .env streamlit run scripts/streamlit_app.py --server.port 8502
 ```
 
-Log in with the demo user from `scripts/seed_db.py` (`agent@demo.local`). The first query after a
+Sign in with the demo user from `scripts/seed_db.py` (`agent@demo.local`, pre-filled). The first query after a
 restart is slow: llm-guard and the embedding models load (the first run ever also downloads about
 3 GB). A quick end-to-end check without the API:
 `uv run --env-file .env python scripts/smoke_test.py`.

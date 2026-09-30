@@ -5,10 +5,11 @@
 1. `docker compose up -d postgres qdrant`
 2. Start the API: `uv run --env-file .env uvicorn app.main:app --host 127.0.0.1 --port 8001`
 3. Start the UI: `uv run --env-file .env streamlit run scripts/streamlit_app.py --server.port 8502`
-4. Log in as `agent@demo.local` (demo user from `scripts/seed_db.py`).
+4. Sign in as `agent@demo.local` (demo user from `scripts/seed_db.py`; the form is pre-filled).
 5. **Warm-up:** ask question 1 once. The first query loads llm-guard and the models and can take
-   minutes (CLAUDE.md S10). Log in only once: login is limited to 5 per minute.
-6. Settings in the sidebar: search mode **hybrid**, rerank **on**, top-k **5**.
+   minutes (CLAUDE.md S10). Sign in only once: sign-in is limited to 5 per minute, and reloading
+   the page signs you out.
+6. Search settings (sidebar): hybrid search, rerank on, 5 passages. These are the defaults.
 7. Keep no experiment script running at the same time (8 GB GPU, CLAUDE.md S11).
 
 The expected answers below were checked against the PDFs. The smoke test (P7,
@@ -46,10 +47,15 @@ Input blocked by PromptInjection". The six questions above were checked through 
 blocked Marathi question as the paper's "English-only guardrail" finding. Do not improvise other
 Devanagari questions during the demo.
 
-Sidebar example buttons (checked the same day): the English, Hindi and Hinglish examples answer
-correctly. The **Marathi example ("पीएम किसान योजनेसाठी ई-केवायसी कोणत्या पद्धतींनी करता येते?")
-is blocked** by the same LLM Guard false positive, so do not click it unless you are showing that
-finding.
+Sidebar example buttons: the English, Hindi and Hinglish examples answer correctly. The old
+Marathi example ("पीएम किसान योजनेसाठी ई-केवायसी कोणत्या पद्धतींनी करता येते?") was blocked by the
+same LLM Guard false positive, so the sidebar now uses question 3 above instead (answered through
+the UI on 2026-09-30: मुख्य सचिव, `mh_women_farmer_act_2026_en.pdf, p. 7`).
+
+What the UI shows: each answer ends with its sources as violet "filename, p. N" stamps; a refusal
+gets a "Not in the documents" note and no stamps; a blocked question gets a plain explanation
+("Blocked by the safety check" for the regex layer, "Blocked by the safety filter" for LLM Guard).
+"Passages read" opens the retrieved chunks, "Technical details" the raw response.
 
 ## An honest failure to mention if asked
 

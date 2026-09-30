@@ -1,13 +1,16 @@
 """Streamlit UI for Sahakar Sahayak — Cooperative & Scheme Assistant.
 
-Talks to the FastAPI backend (/auth, /query). Multilingual questions (English, Hindi,
-Marathi, Hinglish); answers cite their sources as "filename, p. N".
+A chat front end for the FastAPI backend (/auth, /query). Questions can be in English, Hindi,
+Marathi or Hinglish; every answer shows the documents and pages it was built from as
+"filename, p. N" stamps. Colours and fonts live in .streamlit/config.toml.
 """
 
 from __future__ import annotations
 
+import html
 import json
-import os
+import re
+import time
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +18,8 @@ import requests
 import streamlit as st
 
 from app.config import settings
+from app.services.language import detect_language
+from eval.metrics import extract_citations, refusal_type
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -23,141 +28,135 @@ from app.config import settings
 # Root of the repo — used to find eval/results/*.json
 _REPO_ROOT = Path(__file__).parent.parent
 
-# Sidebar example questions, one per supported language (P6). Answers are in the corpus
-# (checked in the P7 smoke test).
+# Sidebar example questions, one per supported language (P6). All four were answered through the
+# API on 2026-09-30. The Marathi one is question 3 of docs/DEMO_SCRIPT.md: the earlier e-KYC
+# example was stopped by LLM Guard's English injection model (P14 false positive).
 EXAMPLE_QUESTIONS: dict[str, str] = {
     "English": "How much income support does a farmer family get under PM-KISAN and how is it paid?",
     "हिंदी": "प्रधानमंत्री किसान सम्मान निधि योजना में किसानों को कितनी राशि मिलती है?",
-    "मराठी": "पीएम किसान योजनेसाठी ई-केवायसी कोणत्या पद्धतींनी करता येते?",
+    "मराठी": "महिला शेतकरी सक्षमीकरण अधिनियमानुसार राज्य संनियंत्रण समितीचे अध्यक्ष कोण असतात?",
     "Hinglish": "Grain storage plan mein PACS ko kya kya facilities banane ki permission hai?",
 }
 
-# Feature presets: same question, different pipeline settings
-USE_CASES: dict[str, dict[str, Any]] = {
-    "🧠 Basic (dense)": {
-        "question": EXAMPLE_QUESTIONS["English"],
-        "search_mode": "dense",
-        "enable_hyde": False,
-        "enable_rerank": False,
-        "enable_crag": False,
-        "enable_self_reflective": False,
-        "top_k": 5,
-        "description": "bge-m3 dense retrieval only",
-    },
-    "⚡ Hybrid + Rerank": {
-        "question": EXAMPLE_QUESTIONS["हिंदी"],
-        "search_mode": "hybrid",
-        "enable_hyde": False,
-        "enable_rerank": True,
-        "enable_crag": False,
-        "enable_self_reflective": False,
-        "top_k": 5,
-        "description": "Dense + sparse fused with RRF, then bge-reranker-v2-m3",
-    },
-    "🛡️ CRAG (grade context)": {
-        "question": EXAMPLE_QUESTIONS["मराठी"],
-        "search_mode": "hybrid",
-        "enable_hyde": False,
-        "enable_rerank": True,
-        "enable_crag": True,
-        "enable_self_reflective": False,
-        "top_k": 5,
-        "description": "Grader LLM drops irrelevant context (no web fallback)",
-    },
-    "🔁 Self-RAG": {
-        "question": EXAMPLE_QUESTIONS["Hinglish"],
-        "search_mode": "hybrid",
-        "enable_hyde": False,
-        "enable_rerank": True,
-        "enable_crag": False,
-        "enable_self_reflective": True,
-        "top_k": 5,
-        "description": "Reflect on the answer and retry with a refined question",
-    },
-}
+LANG_LABELS = {"en": "English", "hi": "हिंदी", "mr": "मराठी", "hinglish": "Hinglish"}
 
-# Demo agent from scripts/seed_db.py DEMO_USERS (local demo only), pre-filled in the login form
+# Demo agent from scripts/seed_db.py DEMO_USERS (local demo only), pre-filled in the sign-in form
 DEMO_USERNAME = "agent@demo.local"
 DEMO_PASSWORD = "agent123"
 
-SEARCH_MODE_EMOJI = {"dense": "🧠", "bm25": "📝", "tfidf": "📄", "sparse": "📝", "hybrid": "⚡"}
+SEARCH_MODE_LABELS = {
+    "hybrid": "Hybrid: meaning + keywords",
+    "dense": "Dense: meaning only (bge-m3)",
+    "bm25": "BM25: keywords only",
+    "tfidf": "TF-IDF: old keyword baseline",
+    "sparse": "Sparse: keywords only",
+}
+SEARCH_MODE_SHORT = {"hybrid": "Hybrid search", "dense": "Dense search", "bm25": "BM25 search",
+                     "tfidf": "TF-IDF search", "sparse": "Sparse search"}
 DEFAULT_SEARCH_MODES = ["dense", "hybrid"]
 
+# Best setup in the experiments (Exp 3: hybrid + reranker, 5 passages); also the demo setting
+DEFAULT_QUERY_SETTINGS: dict[str, Any] = {
+    "search_mode": "hybrid",
+    "top_k": 5,
+    "enable_rerank": True,
+    "enable_hyde": False,
+    "enable_crag": False,
+    "enable_self_reflective": False,
+}
+
+# Shown above a refusal (eval.metrics.refusal_type), so it is not mistaken for a normal answer
+REFUSAL_NOTES = {
+    "no_info": ("Not in the documents",
+                "The assistant read the passages below and did not find this. It answers only "
+                "from the documents, so it does not guess."),
+    "out_of_domain": ("Outside this assistant's topic",
+                      "It answers questions about cooperatives and government schemes only."),
+}
+
 # ---------------------------------------------------------------------------
-# Lesson / feature detection
+# Look and feel
+# ---------------------------------------------------------------------------
+
+# Answers are stamped with their sources the way a government office stamps a file: violet ink,
+# double rule, never quite straight. Everything else stays quiet. Theme colours and the Mukta /
+# IBM Plex Mono fonts come from .streamlit/config.toml; Rozha One is only for the wordmark.
+_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rozha+One&display=swap');
+:root {
+  --ss-ink: #1C2433; --ss-muted: #5B6472;
+  --ss-stamp: #5A3D8A; --ss-stamp-wash: rgba(90, 61, 138, 0.07);
+  --ss-field: #2F6D4F; --ss-turmeric: #B7791F; --ss-turmeric-wash: #FBF1DC;
+}
+/* "[data-testid=stMarkdownContainer] p" outranks Streamlit's own paragraph size and margin */
+[data-testid="stMarkdownContainer"] p.ss-wordmark { font-family: 'Rozha One', 'Nirmala UI', serif;
+  font-weight: 400; color: var(--ss-ink); line-height: 1.15; margin: 0; }
+[data-testid="stMarkdownContainer"] p.ss-wordmark--hero { font-size: clamp(2.8rem, 9vw, 4.4rem);
+  margin-top: .5rem; }
+[data-testid="stMarkdownContainer"] p.ss-wordmark--side { font-size: 1.9rem; }
+[data-testid="stMarkdownContainer"] p.ss-latin { font-size: .74rem; font-weight: 600;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--ss-muted); margin: .15rem 0 0; }
+[data-testid="stMarkdownContainer"] p.ss-lede { font-size: 1.25rem; line-height: 1.45;
+  max-width: 36rem; margin: 1.1rem 0 .4rem; }
+[data-testid="stMarkdownContainer"] p.ss-note { color: var(--ss-muted); max-width: 36rem;
+  margin: 0 0 1rem; }
+[data-testid="stMarkdownContainer"] p.ss-status { font-size: .85rem; font-weight: 500;
+  margin: .6rem 0 .2rem; }
+.ss-status::before { content: ""; display: inline-block; width: .5rem; height: .5rem;
+  border-radius: 50%; background: currentColor; margin-right: .45rem; vertical-align: .08rem; }
+.ss-status--ok { color: var(--ss-field); }
+.ss-status--down { color: var(--ss-turmeric); }
+[data-testid="stMarkdownContainer"] p.ss-label { font-size: .72rem; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ss-muted); margin: 1rem 0 .15rem; }
+[data-testid="stMarkdownContainer"] p.ss-lang { font-size: .72rem; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ss-muted); margin: 0 0 .1rem; }
+[data-testid="stMarkdownContainer"] p.ss-meta { font-size: .85rem; color: var(--ss-muted);
+  margin: .5rem 0 .2rem; }
+/* Example questions read as a list, not as centred buttons */
+[class*="st-key-example_"] button { justify-content: flex-start; text-align: left; }
+[class*="st-key-example_"] button p { text-align: left; }
+.ss-stamps { display: flex; flex-wrap: wrap; gap: .8rem .9rem; margin: .4rem 0 .3rem; padding: 2px; }
+.ss-stamp { display: inline-block; max-width: 100%; overflow-wrap: anywhere;
+  padding: .3rem .7rem; color: var(--ss-stamp); background: var(--ss-stamp-wash);
+  border: 3px double var(--ss-stamp); border-radius: 3px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: .78rem; font-weight: 500;
+  line-height: 1.3; transform: rotate(-1deg); }
+.ss-stamp:nth-child(3n+2) { transform: rotate(.7deg); }
+.ss-stamp:nth-child(3n) { transform: rotate(-.4deg); }
+.ss-cite { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: .8em;
+  color: var(--ss-stamp); background: var(--ss-stamp-wash); border-radius: 3px;
+  padding: .05em .35em; overflow-wrap: anywhere; }
+.ss-cite + .ss-cite { margin-left: .3em; }
+.ss-notice { border-left: 4px solid var(--ss-turmeric); background: var(--ss-turmeric-wash);
+  color: #3F2E00; padding: .6rem .9rem; border-radius: 0 6px 6px 0; margin: .1rem 0 .7rem; }
+.ss-notice strong { display: block; margin-bottom: .1rem; }
+</style>
+"""
+
+# ---------------------------------------------------------------------------
+# API feature detection
 # ---------------------------------------------------------------------------
 
 
-@st.cache_data(ttl=60)
-def detect_lesson_features(base_url: str) -> dict:
-    """Probe /openapi.json to detect lesson and available flags.
-
-    Returns: {version, lesson, available_flags: set[str], has_query: bool}
-    """
+@st.cache_data(ttl=15)
+def detect_api_features(base_url: str) -> dict:
+    """Probe /openapi.json: is the server up, which query flags and search modes does it accept?"""
     try:
         r = requests.get(f"{base_url.rstrip('/')}/openapi.json", timeout=5)
-        if r.status_code != 200:
-            return {
-                "version": "unknown",
-                "lesson": "unknown",
-                "available_flags": set(),
-                "has_query": False,
-            }
-        spec = r.json()
-        version: str = spec.get("info", {}).get("version", "")
-        # Parse "0.1.0-lesson-N" → "lesson-N"
-        if "lesson-" in version:
-            lesson = "lesson-" + version.split("lesson-", 1)[1]
-        else:
-            lesson = "unknown"
-        qr_schema = (
-            spec.get("components", {})
-            .get("schemas", {})
-            .get("QueryRequest", {})
-        )
-        props: set[str] = set(qr_schema.get("properties", {}).keys()) if qr_schema else set()
-        has_query = "/query" in spec.get("paths", {})
-        # search modes come from the API schema: bm25/tfidf appear once the backend has them
-        mode_schema = (qr_schema or {}).get("properties", {}).get("search_mode", {})
-        return {
-            "version": version,
-            "lesson": lesson,
-            "available_flags": props,
-            "has_query": has_query,
-            "search_modes": mode_schema.get("enum") or DEFAULT_SEARCH_MODES,
-        }
-    except Exception:
-        return {
-            "version": "unknown",
-            "lesson": "unknown",
-            "available_flags": set(),
-            "has_query": True,  # assume available by default
-        }
-
-
-def _lesson_banner(info: dict) -> None:
-    """Render the API status banner at the top of the page."""
-    flags = info.get("available_flags", set())
-    has_query = info.get("has_query", True)
-
-    if not has_query:
-        st.error(
-            "🚫 **Lesson 0 (Setup)** — The `/query` endpoint does not exist yet. "
-            "Switch to `lesson-1-naive` to enable retrieval.",
-            icon="🚫",
-        )
-        return
-
-    # Display feature flags that are relevant to the UI
-    feature_names = [
-        f for f in ("search_mode", "top_k", "enable_rerank", "enable_hyde",
-                    "enable_crag", "enable_self_reflective")
-        if f in flags
-    ]
-    features_str = ", ".join(feature_names) if feature_names else "question only"
-
-    # The course "lesson-N" version tag is not shown: it means nothing for this project
-    st.info(f"📡 **API connected** · Features: `{features_str}`", icon="📡")
+    except requests.exceptions.RequestException:
+        return {"reachable": False, "available_flags": set(), "search_modes": DEFAULT_SEARCH_MODES}
+    if r.status_code != 200:
+        return {"reachable": False, "available_flags": set(), "search_modes": DEFAULT_SEARCH_MODES}
+    spec = r.json()
+    qr_schema = spec.get("components", {}).get("schemas", {}).get("QueryRequest", {}) or {}
+    props = qr_schema.get("properties", {})
+    return {
+        "reachable": True,
+        "available_flags": set(props),
+        # bm25 / tfidf appear once the backend has them (P8)
+        "search_modes": props.get("search_mode", {}).get("enum") or DEFAULT_SEARCH_MODES,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -201,6 +200,22 @@ def _refresh_token(base_url: str) -> bool:
     return False
 
 
+def _send(method: str, url: str, token: str | None, json_body: dict[str, Any] | None,
+          files: dict[str, Any] | None) -> tuple[int, Any]:
+    """One HTTP call. Status 0 = the server could not be reached or did not answer in time."""
+    headers = _api_headers(token)
+    if files is not None:
+        headers.pop("Content-Type", None)
+    try:
+        resp = requests.request(method=method, url=url, headers=headers, json=json_body,
+                                files=files, timeout=600)
+    except requests.exceptions.ConnectionError:
+        return 0, {"detail": "connection_error"}
+    except requests.exceptions.Timeout:
+        return 0, {"detail": "timeout"}
+    return resp.status_code, _safe_json(resp)
+
+
 def _request(
     method: str,
     base_url: str,
@@ -211,50 +226,25 @@ def _request(
     retry_auth: bool = True,
 ) -> tuple[int, Any]:
     url = f"{base_url.rstrip('/')}{path}"
-    headers = _api_headers(token)
-    if files is not None:
-        headers.pop("Content-Type", None)
-
-    resp = requests.request(
-        method=method,
-        url=url,
-        headers=headers,
-        json=json_body,
-        files=files,
-        timeout=600,
-    )
-    payload = _safe_json(resp)
-
+    status, payload = _send(method, url, token, json_body, files)
     if (
         retry_auth
-        and resp.status_code == 401
+        and status == 401
         and isinstance(payload, dict)
         and payload.get("detail") == "Token has expired"
         and _refresh_token(base_url)
     ):
-        headers = _api_headers(st.session_state.get("token"))
-        if files is not None:
-            headers.pop("Content-Type", None)
-        resp = requests.request(
-            method=method,
-            url=url,
-            headers=headers,
-            json=json_body,
-            files=files,
-            timeout=600,
-        )
-        payload = _safe_json(resp)
-
-    return resp.status_code, payload
+        status, payload = _send(method, url, st.session_state.get("token"), json_body, files)
+    return status, payload
 
 
 # ---------------------------------------------------------------------------
-# UI helpers
+# Rendering helpers
 # ---------------------------------------------------------------------------
 
 
 def _badge(label: str, color: str = "blue") -> str:
-    """Return a small HTML badge."""
+    """Return a small HTML badge (used by the evaluation dashboard)."""
     colors = {
         "blue": "#dbeafe",
         "text_blue": "#1e40af",
@@ -294,190 +284,343 @@ def _format_sources(chunks: list[dict[str, Any]]) -> list[str]:
     return list(dict.fromkeys(_format_source(ch) for ch in chunks))
 
 
-def _render_answer_card(payload: dict[str, Any]) -> None:
-    """Render the answer portion of a response (no status banner)."""
-    answer = payload.get("answer", "")
-    sources = payload.get("sources", [])
-    confidence = payload.get("confidence", 0.0)
-    cache_hit = payload.get("cache_hit", False)
-    cost_saved = payload.get("cost_saved", "$0.00")
-    meta = payload.get("metadata", {}) or {}
+def _cited_sources(answer: str) -> list[str]:
+    """Unique 'filename, p. N' for the [file, p. N] citations written in the answer."""
+    return list(dict.fromkeys(f"{c.source}, p. {c.page}" if c.page is not None else c.source
+                              for c in extract_citations(answer)))
 
-    with st.container(border=True):
-        cols = st.columns([3, 1, 1, 1])
-        with cols[0]:
-            if cache_hit:
-                st.markdown(_badge("⚡ Cache Hit", "green"), unsafe_allow_html=True)
-            route = meta.get("route", "rag")
-            st.markdown(_badge(f"Route: {route.upper()}", "purple"), unsafe_allow_html=True)
-        with cols[1]:
-            st.metric("Confidence", f"{confidence:.0%}")
-        with cols[2]:
-            st.metric("Sources", len(sources))
-        with cols[3]:
-            st.metric("Saved", cost_saved)
 
-        st.divider()
-        st.markdown("**Answer**")
-        st.markdown(answer if answer else "_No answer returned._")
+# [file.pdf, p. 3] inside an answer -> a small violet tag (same shape as eval.metrics citations)
+_INLINE_CITE = re.compile(r"\[([^\[\]\n]+?\.(?:pdf|docx|html?|txt|md)(?:\s*,\s*pp?\.?\s*[\d,\s–-]+)?)\]",
+                          re.I)
 
-        chunks = meta.get("retrieved_chunks") or []
-        cited = _format_sources(chunks) or sources
-        if cited:
-            st.markdown("**📚 Sources**")
-            for i, src in enumerate(cited, 1):
-                st.markdown(f"{i}. {src}")
 
-        if chunks:
-            with st.expander(f"🧩 Retrieved Context Chunks ({len(chunks)})", expanded=True):
-                st.caption(
-                    "These are the chunks the LLM saw before generating the answer. "
-                    "Flip a feature toggle and re-run to see how retrieval changes."
+def _answer_html(answer: str) -> str:
+    """Answer markdown with HTML escaped (it can quote document text) and citations as tags."""
+    safe = html.escape(answer, quote=False)
+    return _INLINE_CITE.sub(lambda m: f'<span class="ss-cite">{m.group(1)}</span>', safe)
+
+
+def _notice(title: str, body: str) -> None:
+    st.markdown(
+        f'<div class="ss-notice" role="status"><strong>{html.escape(title)}</strong>'
+        f"{html.escape(body)}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _stamps(labels: list[str]) -> None:
+    items = "".join(f'<span class="ss-stamp">{html.escape(label)}</span>' for label in labels)
+    st.markdown(f'<p class="ss-label">Sources</p><div class="ss-stamps">{items}</div>',
+                unsafe_allow_html=True)
+
+
+def _render_answer(payload: dict[str, Any], turn: dict[str, Any] | None = None) -> None:
+    """Answer text, source stamps, a one-line summary of how it was found, and the passages."""
+    answer = payload.get("answer") or ""
+    meta = payload.get("metadata") or {}
+    chunks = meta.get("retrieved_chunks") or []
+    kind = refusal_type(answer) if answer else None
+
+    if kind:
+        _notice(*REFUSAL_NOTES[kind])
+    if answer:
+        st.markdown(_answer_html(answer), unsafe_allow_html=True)
+    else:
+        st.markdown("_The server returned an empty answer._")
+    if not kind:
+        sources = _cited_sources(answer) or _format_sources(chunks) or payload.get("sources", [])
+        if sources:
+            _stamps(sources)
+
+    used = (turn or {}).get("settings", {})
+    parts = []
+    if used.get("search_mode"):
+        parts.append(SEARCH_MODE_SHORT.get(used["search_mode"], used["search_mode"]))
+    if used.get("enable_rerank"):
+        parts.append("reranked")
+    parts.append(f"{len(chunks)} passage{'s' if len(chunks) != 1 else ''} read")
+    if meta.get("reflection_iterations"):
+        parts.append(f"{meta['reflection_iterations']} review round(s)")
+    if payload.get("cache_hit"):
+        parts.append("from cache")
+    if turn and turn.get("seconds") is not None:
+        parts.append(f"{turn['seconds']:.1f} s")
+    st.markdown(f'<p class="ss-meta">{html.escape(" · ".join(parts))}</p>', unsafe_allow_html=True)
+
+    if chunks:
+        with st.expander(f"Passages read ({len(chunks)})"):
+            for i, ch in enumerate(chunks, 1):
+                st.markdown(
+                    f'<p class="ss-meta"><span class="ss-cite">{html.escape(_format_source(ch))}'
+                    f'</span> &nbsp;score {ch.get("score", 0.0):.3f}</p>',
+                    unsafe_allow_html=True,
                 )
-                for i, ch in enumerate(chunks, 1):
-                    src = _format_source(ch)
-                    score = ch.get("score", 0.0)
-                    text = ch.get("text", "")
-                    with st.container(border=True):
-                        cols = st.columns([3, 1])
-                        with cols[0]:
-                            st.markdown(f"**{i}. `{src}`**")
-                        with cols[1]:
-                            st.metric("score", f"{score:.3f}")
-                        st.markdown(text)
+                st.markdown(ch.get("text", ""))
+                if i < len(chunks):
+                    st.divider()
+    with st.expander("Technical details"):
+        st.json({"settings": used, "response": payload} if turn else payload)
 
-        with st.expander("🔍 Metadata & Raw Response", expanded=False):
-            st.json(payload)
+
+def _render_error(status: int, payload: Any) -> None:
+    """Explain a failed request in plain words; the raw response stays one click away."""
+    detail = payload.get("detail") if isinstance(payload, dict) else None
+    text = detail if isinstance(detail, str) else json.dumps(detail, ensure_ascii=False)
+    if status == 0 and detail == "connection_error":
+        title, body = ("Can't reach the assistant server",
+                       "Start the API (port 8001) and ask again. Its address is under Server in "
+                       "the sidebar.")
+    elif status == 0:
+        title, body = "The server took too long", "Wait a moment and ask again."
+    elif status == 422 and "malicious" in text:
+        title, body = ("Blocked by the safety check",
+                       "The question looks like an attempt to change the assistant's instructions, "
+                       "so it was not sent to the language model. Ask about a cooperative or a "
+                       "scheme instead.")
+    elif status == 400 and text.startswith("injection_blocked"):
+        title, body = ("Blocked by the safety filter",
+                       "LLM Guard's prompt-injection check stopped this question before it reached "
+                       "the assistant. The check is trained on English and sometimes blocks normal "
+                       "Hindi or Marathi questions; rewording the question can help.")
+    elif status == 400 and text.startswith("content_blocked"):
+        title, body = ("Blocked by the content filter",
+                       "The toxicity or personal-data check stopped this question.")
+    elif status == 429:
+        title, body = ("Too many questions at once",
+                       text if "tokens" in text else "Wait a minute and ask again.")
+    elif status == 401:
+        title, body = "Your sign-in has expired", "Sign out in the sidebar and sign in again."
+    elif status == 500 and "output_blocked" in text:
+        title, body = "Answer withheld", "The output filter blocked the generated answer."
+    else:
+        title, body = "Something went wrong", f"The server answered with HTTP {status}."
+    _notice(title, body)
+    with st.expander("Technical details"):
+        st.json(payload)
 
 
 def _render_pending_sql_card(pending_sql: dict[str, Any]) -> None:
     """Render a pending SQL approval card."""
-    st.warning("⏳ SQL approval required — go to the **SQL Approval** tab to review.")
+    st.warning("SQL approval required — open the **SQL approval** tab to review it.")
     with st.container(border=True):
-        st.markdown("**🗄️ Generated SQL**")
+        st.markdown("**Generated SQL**")
         st.code(pending_sql.get("sql", ""), language="sql")
         st.caption(f"query_id: `{pending_sql.get('query_id', '')}`")
         if pending_sql.get("explanation"):
             st.info(pending_sql["explanation"])
 
 
-def _render_response_card(status: int, payload: Any) -> None:
-    """Render a nice response card instead of raw JSON dump."""
+def _render_response_card(status: int, payload: Any, turn: dict[str, Any] | None = None) -> None:
+    """Answer, pending SQL block or error for one API response."""
     if not isinstance(payload, dict):
         st.code(json.dumps(payload, indent=2), language="json")
         return
-
-    # Top status banner
-    if 200 <= status < 300:
-        st.success("✅ Request succeeded")
-    else:
-        st.error(f"❌ Request failed — HTTP {status}")
-        st.code(json.dumps(payload, indent=2), language="json")
+    if not 200 <= status < 300:
+        _render_error(status, payload)
         return
-
-    # If there is a pending SQL block, show it prominently
     pending_sql = payload.get("pending_sql")
     if pending_sql:
         st.session_state["pending_sql"] = pending_sql
         _render_pending_sql_card(pending_sql)
         return
-
-    _render_answer_card(payload)
+    _render_answer(payload, turn)
 
 
 # ---------------------------------------------------------------------------
-# Sections
+# Sidebar, sign-in and chat
 # ---------------------------------------------------------------------------
 
 
-def _sidebar(base_url: str) -> str:
+def _hero() -> None:
+    st.markdown(
+        '<p class="ss-wordmark ss-wordmark--hero" lang="hi">सहकार सहायक</p>'
+        '<p class="ss-latin">Sahakar Sahayak · Cooperative &amp; scheme assistant</p>'
+        '<p class="ss-lede">Ask about cooperative societies and government schemes in English, '
+        '<span lang="hi">हिंदी</span>, <span lang="mr">मराठी</span> or Hinglish.</p>'
+        '<p class="ss-note">Answers come only from official Acts, policies, scheme guidelines and '
+        "government resolutions. Every fact is stamped with the file and page it came from, and "
+        "when the documents don't say, the assistant tells you so.</p>",
+        unsafe_allow_html=True,
+    )
+
+
+def _settings_panel(info: dict) -> dict[str, Any]:
+    """Search settings in the sidebar; returns the flags to send with each question."""
+    flags = info.get("available_flags") or set()
+
+    def supported(flag: str) -> bool:
+        return not flags or flag in flags
+
+    for key, value in DEFAULT_QUERY_SETTINGS.items():
+        st.session_state.setdefault(f"q_{key}", value)
+    modes = list(info.get("search_modes") or DEFAULT_SEARCH_MODES)
+    if st.session_state["q_search_mode"] not in modes:
+        st.session_state["q_search_mode"] = modes[0]
+
+    with st.expander("Search settings"):
+        st.caption("The defaults are the best setup from the experiments: hybrid search with the "
+                   "reranker, reading 5 passages.")
+        if supported("search_mode"):
+            st.selectbox("How to search the documents", modes,
+                         format_func=lambda m: SEARCH_MODE_LABELS.get(m, m), key="q_search_mode")
+        if supported("top_k"):
+            st.slider("Passages to read", min_value=1, max_value=20, key="q_top_k")
+        if supported("enable_rerank"):
+            st.toggle("Rerank passages", key="q_enable_rerank",
+                      help="A cross-encoder (bge-reranker-v2-m3) re-orders the passages found.")
+        st.markdown('<p class="ss-label">Extra steps (slower)</p>', unsafe_allow_html=True)
+        if supported("enable_hyde"):
+            st.toggle("HyDE", key="q_enable_hyde",
+                      help="Search with a draft answer written by the model.")
+        if supported("enable_crag"):
+            st.toggle("CRAG", key="q_enable_crag",
+                      help="A grader model drops passages it judges irrelevant (no web search).")
+        if supported("enable_self_reflective"):
+            st.toggle("Self-RAG", key="q_enable_self_reflective",
+                      help="A reviewer model checks the answer and may ask for a retry.")
+
+    return {key: st.session_state[f"q_{key}"] for key in DEFAULT_QUERY_SETTINGS if supported(key)}
+
+
+def _sidebar(info: dict) -> dict[str, Any]:
+    """Wordmark, example questions, search settings, account and server. Returns query settings."""
     with st.sidebar:
-        st.markdown("### 🤝 Sahakar Sahayak")
-        st.caption("Cooperative & Scheme Assistant")
-        st.markdown("**💡 Example questions**")
-        for lang, q in EXAMPLE_QUESTIONS.items():
-            if st.button(f"{lang}: {q}", use_container_width=True, key=f"example_{lang}"):
-                st.session_state["q_question"] = q
-                st.rerun()
-        st.markdown("---")
-        base_url = st.text_input("API Base URL", value=base_url, key="base_url_input")
-        api = base_url.rstrip("/")
-        st.markdown(f"[Swagger UI]({api}/docs) · [ReDoc]({api}/redoc)")
-        st.markdown("---")
+        st.markdown(
+            '<p class="ss-wordmark ss-wordmark--side" lang="hi">सहकार सहायक</p>'
+            '<p class="ss-latin">Sahakar Sahayak</p>',
+            unsafe_allow_html=True,
+        )
+        if info.get("reachable"):
+            st.markdown('<p class="ss-status ss-status--ok">Server connected</p>',
+                        unsafe_allow_html=True)
+        else:
+            st.markdown('<p class="ss-status ss-status--down">Server not reachable</p>',
+                        unsafe_allow_html=True)
 
-        # Quick health indicator
-        if st.button("🩺 Ping Health", use_container_width=True):
-            status, payload = _request("GET", base_url, "/admin/health")
-            if status == 200 and isinstance(payload, dict):
-                overall = payload.get("status", "unknown")
-                if overall == "ok":
-                    st.success("All systems operational ✅")
-                else:
-                    st.warning(f"Degraded — {overall}")
-                st.json({k: v for k, v in payload.items() if k != "status"})
-            else:
-                st.error("Health check failed")
+        st.markdown('<p class="ss-label">Try a question</p>', unsafe_allow_html=True)
+        for lang, question in EXAMPLE_QUESTIONS.items():
+            if st.button(f"**{lang}** · {question}", key=f"example_{lang}",
+                         use_container_width=True):
+                st.session_state["pending_question"] = question
 
-        st.markdown("---")
-        st.caption("Session State")
-        token = st.session_state.get("token", "")
-        if token:
-            st.success("Authenticated ✅")
-            if st.button("🔓 Logout", use_container_width=True):
+        query_settings = _settings_panel(info)
+
+        if st.session_state.get("token"):
+            st.divider()
+            user = html.escape(st.session_state.get("login_username", "user"))
+            st.markdown(f'<p class="ss-meta">Signed in as {user}</p>', unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            if c1.button("New chat", use_container_width=True):
+                st.session_state["chat"] = []
+            if c2.button("Sign out", use_container_width=True):
                 st.session_state.clear()
                 st.rerun()
-        else:
-            st.info("Not authenticated")
 
-        return base_url
+        with st.expander("Server"):
+            st.text_input("API address", key="base_url_input")
+            api = st.session_state["base_url_input"].rstrip("/")
+            st.markdown(f"[API docs]({api}/docs) · [ReDoc]({api}/redoc)")
+            if st.button("Check server", use_container_width=True):
+                status, payload = _request("GET", api, "/admin/health")
+                if status == 200 and isinstance(payload, dict):
+                    if payload.get("status") == "ok":
+                        st.success("All parts are working.")
+                    else:
+                        st.warning(f"Partly working: {payload.get('status')}")
+                    st.json({k: v for k, v in payload.items() if k != "status"})
+                else:
+                    st.error("The health check failed. Is the API running?")
+    return query_settings
 
 
-def _auth_section(base_url: str) -> None:
-    st.header("🔐 Authentication")
-    token = st.session_state.get("token")
+def _auth_error(status: int, payload: Any) -> None:
+    detail = payload.get("detail") if isinstance(payload, dict) else None
+    messages = {
+        0: "Can't reach the assistant server. Start the API (port 8001) and try again.",
+        401: "Wrong username or password.",
+        409: "That username is already taken.",
+        429: "Too many sign-in attempts. Wait a minute and try again.",
+    }
+    st.error(messages.get(status, f"Sign-in failed (HTTP {status}): {detail}"))
 
-    if token:
-        st.success("You are logged in. Token stored in session.")
-        return
 
-    tab_reg, tab_log = st.tabs(["📝 Register", "🔑 Login"])
+def _sign_in_screen(base_url: str) -> None:
+    _hero()
+    with st.form("sign_in"):
+        st.markdown("**Sign in to ask questions**")
+        username = st.text_input("Username", value=DEMO_USERNAME)
+        password = st.text_input("Password", value=DEMO_PASSWORD, type="password")
+        submitted = st.form_submit_button("Sign in", type="primary", use_container_width=True)
+    st.caption("The demo account from scripts/seed_db.py is filled in.")
+    if submitted:
+        status, payload = _login(base_url, username, password)
+        if status == 200 and isinstance(payload, dict) and "token" in payload:
+            st.session_state["token"] = payload["token"]
+            st.session_state["login_username"] = username
+            st.session_state["login_password"] = password
+            st.rerun()
+        _auth_error(status, payload)
 
-    with tab_reg:
-        c1, c2 = st.columns(2)
-        with c1:
-            reg_user = st.text_input("Username", value="", key="reg_user")
-        with c2:
-            reg_pass = st.text_input("Password", value="", type="password", key="reg_pass")
-        if st.button("Create Account", use_container_width=True, key="btn_register"):
+    with st.expander("Create an account"):
+        with st.form("register"):
+            new_user = st.text_input("Username", key="reg_user")
+            new_pass = st.text_input("Password", type="password", key="reg_pass")
+            created = st.form_submit_button("Create account", use_container_width=True)
+        if created:
             status, payload = _request(
                 "POST", base_url, "/auth/register",
-                json_body={"username": reg_user, "password": reg_pass},
+                json_body={"username": new_user, "password": new_pass},
             )
             if status in (200, 201) and isinstance(payload, dict) and "token" in payload:
                 st.session_state["token"] = payload["token"]
-                st.session_state["login_username"] = reg_user
-                st.session_state["login_password"] = reg_pass
-                st.success("Registered & logged in! 🎉")
+                st.session_state["login_username"] = new_user
+                st.session_state["login_password"] = new_pass
                 st.rerun()
-            else:
-                _render_response_card(status, payload)
+            _auth_error(status, payload)
 
-    with tab_log:
-        c1, c2 = st.columns(2)
-        with c1:
-            log_user = st.text_input("Username", value=DEMO_USERNAME, key="log_user")
-        with c2:
-            log_pass = st.text_input("Password", value=DEMO_PASSWORD, type="password", key="log_pass")
-        if st.button("Login", use_container_width=True, key="btn_login"):
-            status, payload = _login(base_url, log_user, log_pass)
-            if status == 200 and isinstance(payload, dict) and "token" in payload:
-                st.session_state["token"] = payload["token"]
-                st.session_state["login_username"] = log_user
-                st.session_state["login_password"] = log_pass
-                st.success("Logged in! 🎉")
-                st.rerun()
-            else:
-                _render_response_card(status, payload)
+
+def _render_question(question: str) -> None:
+    lang = LANG_LABELS.get(detect_language(question), "")
+    st.markdown(f'<p class="ss-lang">{html.escape(lang)}</p>', unsafe_allow_html=True)
+    st.markdown(question)
+
+
+def _chat_section(base_url: str, query_settings: dict[str, Any]) -> None:
+    """The conversation: earlier turns, then the new question (typed or an example)."""
+    chat: list[dict[str, Any]] = st.session_state.setdefault("chat", [])
+    # The input box is pinned to the bottom wherever it is created; reading it first lets the
+    # welcome text disappear as soon as the first question is asked
+    typed = st.chat_input("Ask in English, हिंदी, मराठी or Hinglish…")
+    question = (st.session_state.pop("pending_question", None) or typed or "").strip()
+    if not chat and not question:
+        _hero()
+        st.caption("Pick an example question in the sidebar, or type your own below.")
+
+    for turn in chat:
+        with st.chat_message("user", avatar=":material/person:"):
+            _render_question(turn["question"])
+        with st.chat_message("assistant", avatar=":material/account_balance:"):
+            _render_response_card(turn["status"], turn["payload"], turn)
+
+    if not question:
+        return
+
+    turn: dict[str, Any] = {"question": question, "settings": dict(query_settings)}
+    with st.chat_message("user", avatar=":material/person:"):
+        _render_question(question)
+    with st.chat_message("assistant", avatar=":material/account_balance:"):
+        with st.spinner("Searching the documents…"):
+            started = time.perf_counter()
+            status, payload = _request(
+                "POST", base_url, "/query",
+                token=st.session_state.get("token"),
+                json_body={"question": question, **query_settings},
+            )
+            turn["seconds"] = time.perf_counter() - started
+        turn["status"], turn["payload"] = status, payload
+        _render_response_card(status, payload, turn)
+    chat.append(turn)
 
 
 def _upload_section(base_url: str) -> None:
@@ -566,208 +709,6 @@ def _upload_section(base_url: str) -> None:
                 _render_response_card(status_code, payload)
 
 
-def _query_section(base_url: str, lesson_info: dict) -> None:
-    st.header("💬 Ask a Question")
-    token = st.session_state.get("token")
-    if not token:
-        st.info("Login first to use query endpoints.")
-        return
-
-    if not lesson_info.get("has_query", True):
-        st.error(
-            "The `/query` endpoint is not available in the current lesson branch. "
-            "Switch to lesson-1-naive or later."
-        )
-        return
-
-    # --- Persisted results from previous runs --------------------------------
-    last_result = st.session_state.get("last_query_result")
-    if last_result and isinstance(last_result, dict):
-        with st.container(border=True):
-            st.markdown("**📌 Last Query Result**")
-            st.caption(f"Question: `{last_result.get('question', '—')}`")
-            _render_answer_card(last_result["payload"])
-        if st.button("🗑️ Dismiss result", key="dismiss_query_result"):
-            st.session_state.pop("last_query_result", None)
-            st.rerun()
-        st.divider()
-
-    pending = st.session_state.get("pending_sql")
-    if pending and isinstance(pending, dict):
-        st.info(
-            f"⏳ You have a pending SQL approval (query_id: `{pending.get('query_id', '')}`). "
-            "Go to the **SQL Approval** tab to approve or reject it.",
-            icon="🗄️",
-        )
-
-    # Use-case presets
-    available_flags = lesson_info.get("available_flags", set())
-    st.markdown("**🎯 Use Case Presets** — pick one to auto-fill settings:")
-
-    # Show presets in rows of 4
-    preset_items = list(USE_CASES.items())
-    for row_start in range(0, len(preset_items), 4):
-        row = preset_items[row_start:row_start + 4]
-        cols = st.columns(len(row))
-        for idx, (label, cfg) in enumerate(row):
-            with cols[idx]:
-                help_text = cfg.get("description", "")
-                if st.button(label, use_container_width=True, key=f"preset_{row_start + idx}", help=help_text):
-                    for k, v in cfg.items():
-                        if k != "description":
-                            st.session_state[f"q_{k}"] = v
-                    st.rerun()
-
-    st.divider()
-
-    # Query input
-    question = st.text_area(
-        "Your question",
-        value=st.session_state.get("q_question", EXAMPLE_QUESTIONS["English"]),
-        height=80,
-        key="q_question",
-        placeholder="English · हिंदी · मराठी · Hinglish — e.g. PM-KISAN mein kitna paisa milta hai?",
-    )
-
-    # Feature toggles — hide controls for flags not in this lesson's schema
-    with st.expander("⚙️ RAG Feature Toggles", expanded=True):
-        # search_mode only shown if API supports it (L2+)
-        has_search_mode = not available_flags or "search_mode" in available_flags
-        has_top_k = not available_flags or "top_k" in available_flags
-        has_hyde = not available_flags or "enable_hyde" in available_flags
-        has_rerank = not available_flags or "enable_rerank" in available_flags
-        has_crag = not available_flags or "enable_crag" in available_flags
-        has_self_rag = not available_flags or "enable_self_reflective" in available_flags
-
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            if has_search_mode:
-                modes = list(lesson_info.get("search_modes") or DEFAULT_SEARCH_MODES)
-                current = st.session_state.get("q_search_mode", "hybrid")
-                search_mode = st.selectbox(
-                    "Search mode",
-                    modes,
-                    index=modes.index(current) if current in modes else 0,
-                    format_func=lambda x: f"{SEARCH_MODE_EMOJI.get(x, '🔎')} {x}",
-                    key="q_search_mode",
-                )
-            else:
-                search_mode = "dense"
-                st.caption("_search_mode: N/A (L1)_")
-        with c2:
-            if has_top_k:
-                top_k = st.slider(
-                    "top_k",
-                    min_value=1, max_value=50,
-                    value=st.session_state.get("q_top_k", 5),
-                    key="q_top_k",
-                )
-            else:
-                top_k = 5
-                st.caption("_top_k: N/A_")
-        with c3:
-            if has_hyde:
-                enable_hyde = st.toggle(
-                    "HyDE",
-                    value=st.session_state.get("q_enable_hyde", False),
-                    key="q_enable_hyde",
-                    help="Generate hypothetical answer embeddings to improve retrieval",
-                )
-            else:
-                enable_hyde = False
-                st.caption("_HyDE: N/A (L4+)_")
-        with c4:
-            if has_rerank:
-                enable_rerank = st.toggle(
-                    "Rerank",
-                    value=st.session_state.get("q_enable_rerank", False),
-                    key="q_enable_rerank",
-                    help="Cross-encoder reranking of retrieved chunks",
-                )
-            else:
-                enable_rerank = False
-                st.caption("_Rerank: N/A (L3+)_")
-
-        c5, c6, _ = st.columns(3)
-        with c5:
-            if has_crag:
-                enable_crag = st.toggle(
-                    "CRAG",
-                    value=st.session_state.get("q_enable_crag", False),
-                    key="q_enable_crag",
-                    help="CRAG: a grader LLM drops irrelevant context (web fallback is off)",
-                )
-            else:
-                enable_crag = False
-                st.caption("_CRAG: N/A (L5+)_")
-        with c6:
-            if has_self_rag:
-                enable_self_reflective = st.toggle(
-                    "Self-Reflective",
-                    value=st.session_state.get("q_enable_self_reflective", False),
-                    key="q_enable_self_reflective",
-                    help="Self-RAG reflection loop (max 2 retries)",
-                )
-            else:
-                enable_self_reflective = False
-                st.caption("_Self-RAG: N/A (L6+)_")
-
-        # Visual summary of active features
-        active = []
-        if enable_hyde:
-            active.append("HyDE")
-        if enable_rerank:
-            active.append("Rerank")
-        if enable_crag:
-            active.append("CRAG")
-        if enable_self_reflective:
-            active.append("Self-Reflective")
-        active_str = " · ".join(active) if active else "None (basic retrieval)"
-        st.caption(f"Active features: **{active_str}** | Search: **{search_mode}** | top_k: **{top_k}**")
-
-    # Build body: only send fields the API actually supports
-    body: dict[str, Any] = {"question": question}
-    if has_top_k:
-        body["top_k"] = top_k
-    if has_search_mode:
-        body["search_mode"] = search_mode
-    if has_rerank:
-        body["enable_rerank"] = enable_rerank
-    if has_hyde:
-        body["enable_hyde"] = enable_hyde
-    if has_crag:
-        body["enable_crag"] = enable_crag
-    if has_self_rag:
-        body["enable_self_reflective"] = enable_self_reflective
-
-    # Submit
-    if st.button("🚀 Submit Query", use_container_width=True, key="btn_query"):
-        with st.spinner("Running query pipeline…"):
-            status, payload = _request(
-                "POST", base_url, "/query",
-                token=token, json_body=body,
-            )
-        _render_response_card(status, payload)
-
-        # Persist completed results (not pending SQL) so they survive tab switches
-        if status == 200 and isinstance(payload, dict) and not payload.get("pending_sql"):
-            st.session_state["last_query_result"] = {
-                "question": question,
-                "payload": payload,
-            }
-
-        # Track in session history
-        if status == 200 and isinstance(payload, dict):
-            history = st.session_state.get("query_history", [])
-            history.append({
-                "question": question,
-                "route": (payload.get("metadata") or {}).get("route", "rag"),
-                "confidence": payload.get("confidence", 0.0),
-                "cache_hit": payload.get("cache_hit", False),
-            })
-            st.session_state["query_history"] = history[-20:]
-
-
 def _sql_approval_section(base_url: str) -> None:
     st.header("🗄️ SQL Approval")
     token = st.session_state.get("token")
@@ -786,7 +727,7 @@ def _sql_approval_section(base_url: str) -> None:
             st.markdown(f"**{label}**")
             st.caption(f"query_id: `{last_sql.get('query_id', '—')}`")
             if action == "approved":
-                _render_answer_card(last_sql["payload"])
+                _render_answer(last_sql["payload"])
             else:
                 st.markdown("_SQL query was rejected._")
         if st.button("🗑️ Dismiss result", key="dismiss_sql_result"):
@@ -843,21 +784,6 @@ def _sql_approval_section(base_url: str) -> None:
                     }
                     st.session_state.pop("pending_sql", None)
                     st.rerun()
-
-
-def _history_section() -> None:
-    st.header("📜 Recent Queries")
-    history = st.session_state.get("query_history", [])
-    if not history:
-        st.caption("No queries yet this session.")
-        return
-    for item in reversed(history[-10:]):
-        with st.container(border=True):
-            st.markdown(f"**{item['question']}**")
-            cols = st.columns([1, 1, 1, 3])
-            cols[0].caption(f"Route: {item.get('route', '—')}")
-            cols[1].caption(f"Conf: {item.get('confidence', 0):.0%}")
-            cols[2].caption(f"Cache: {'✅' if item.get('cache_hit') else '❌'}")
 
 
 # ---------------------------------------------------------------------------
@@ -1203,47 +1129,39 @@ def main() -> None:
     st.set_page_config(
         page_title="Sahakar Sahayak — Cooperative & Scheme Assistant",
         page_icon="🤝",
-        layout="wide",
-        initial_sidebar_state="expanded",
+        layout="centered",
+        initial_sidebar_state="auto",  # open on desktop, closed on phones
+
     )
+    st.markdown(_CSS, unsafe_allow_html=True)
 
-    default_url = f"http://localhost:{settings.api_host_port}"
-    base_url = _sidebar(default_url)
+    st.session_state.setdefault("base_url_input", f"http://localhost:{settings.api_host_port}")
+    base_url = st.session_state["base_url_input"]
+    info = detect_api_features(base_url)
+    query_settings = _sidebar(info)
+    base_url = st.session_state["base_url_input"]
 
-    # Detect lesson features (cached 60 s)
-    lesson_info = detect_lesson_features(base_url)
+    if not st.session_state.get("token"):
+        _sign_in_screen(base_url)
+        return
 
-    # Title area + lesson banner
-    c_title, c_status = st.columns([3, 1])
-    with c_title:
-        st.title("🤝 Sahakar Sahayak — Cooperative & Scheme Assistant")
-        st.caption(
-            "English · हिंदी · मराठी · Hinglish — answers only from official cooperative and "
-            "government-scheme documents, with [source, p. N] citations"
-        )
-    with c_status:
-        token = st.session_state.get("token")
-        if token:
-            st.markdown(_badge("Authenticated", "green"), unsafe_allow_html=True)
-        else:
-            st.markdown(_badge("Guest", "yellow"), unsafe_allow_html=True)
-
-    # Lesson awareness banner
-    _lesson_banner(lesson_info)
-
-    st.divider()
-
-    # Main tabs; SQL approval and upload are hidden unless enabled in config
-    sections = [("🔐 Auth", lambda: _auth_section(base_url)),
-                ("💬 Query", lambda: _query_section(base_url, lesson_info))]
+    # Upload and SQL approval stay hidden unless enabled in config; the old golden-set dashboard
+    # only appears when eval/results/*.json exists (this project's results are in results/*.csv)
+    extra = []
     if settings.ui_upload_enabled:
-        sections.append(("📤 Upload", lambda: _upload_section(base_url)))
+        extra.append(("Upload", lambda: _upload_section(base_url)))
     if settings.sql_enabled:
-        sections.append(("🗄️ SQL Approval", lambda: _sql_approval_section(base_url)))
-    sections += [("📜 History", _history_section),
-                 ("📊 Evaluation Results", _eval_dashboard_section)]
+        extra.append(("SQL approval", lambda: _sql_approval_section(base_url)))
+    if _list_eval_files():
+        extra.append(("Evaluation results", _eval_dashboard_section))
 
-    for tab, (_, render) in zip(st.tabs([name for name, _ in sections]), sections, strict=True):
+    if not extra:
+        _chat_section(base_url, query_settings)
+        return
+    tabs = st.tabs(["Ask"] + [name for name, _ in extra])
+    with tabs[0]:
+        _chat_section(base_url, query_settings)
+    for tab, (_, render) in zip(tabs[1:], extra, strict=True):
         with tab:
             render()
 

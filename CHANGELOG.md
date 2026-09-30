@@ -1137,3 +1137,37 @@ suggestions bhi nahi liye. Sheet mein ye record hai.
 
 - `paper/paper.md`: author line "Ritesh Kumar, Department of Computer Engineering, BVPCOE, Pune"; draft-status
   note se to-do hata diya. Paper mein ab koi placeholder ya `[CITATION NEEDED]` nahi.
+
+## UI/UX redesign — chat UI with source stamps (2026-09-30)
+
+**Kya hua (simple Hinglish mein):** User ke kehne par Streamlit UI naya banaya. Backend, API calls aur
+search logic wahi; sirf dikhne aur use karne ka tareeka badla.
+
+- **Pehle:** developer console jaisa — Auth/Query/History/Evaluation tabs, pehle "Register" khulta tha,
+  raw JSON, "Route: RAG", "Saved $0.00", API URL aur Swagger links saamne; error par poora JSON; Evaluation
+  tab khaali (`eval/results/` hai hi nahi, purane K8s course ka hissa).
+- **Ab:** chat jaisa UI (`st.chat_message` + `st.chat_input`), pehle sign-in card (demo user bhara hua),
+  "Create an account" chhota expander mein. Sawaal par bhasha ka tag (English / हिंदी / मराठी / Hinglish,
+  `app/services/language.py` se). Jawab ke andar `[file, p. N]` chhote violet tag, aur neeche sources
+  **violet rubber-stamp** jaise ("filename, p. N") — sarkari daftar ki mohar ki tarah, kyunki har jawab
+  sarkari document se aata hai. Ek line: "Hybrid search · reranked · 5 passages read · 7.0 s".
+  "Passages read" aur "Technical details" band expander mein.
+- **Refusal:** `eval.metrics.refusal_type` se pehchaan ke "Not in the documents" (ya "Outside this
+  assistant's topic") note, aur koi source stamp nahi (jhooti citation na lage).
+- **Block / error:** 422 regex → "Blocked by the safety check"; LLM Guard 400 → "Blocked by the safety
+  filter" (saath mein imaandari se: English-trained check kabhi Hindi/Marathi sawaal bhi rok deta hai);
+  429, 401, server band (pehle traceback aata tha) — sab saaf shabdon mein, raw JSON ek click door.
+- **Sidebar:** wordmark "सहकार सहायक", server status dot, 4 example sawaal (left-aligned), "Search
+  settings" (default ab **hybrid + rerank + 5 passages** = Exp 3 ka best setup aur demo setting; pehle
+  rerank off tha), New chat / Sign out, "Server" expander mein API address aur health check.
+- **Marathi example badla:** purana e-KYC sawaal LLM Guard se block hota tha (P14); ab DEMO_SCRIPT ka
+  sawaal 3 (UI se chala ke dekha: मुख्य सचिव, `mh_women_farmer_act_2026_en.pdf, p. 7`).
+- **Look:** `.streamlit/config.toml` — light theme, stamp violet `#5A3D8A`, grey-green paper `#F4F6F3`,
+  Mukta (Devanagari + Latin) body font, IBM Plex Mono stamps, Rozha One sirf wordmark ke liye; Deploy
+  button chhupaya. Phone par sidebar band rehta hai (`initial_sidebar_state="auto"`).
+- Upload / SQL approval tab ab bhi config flag se; purana golden-set dashboard sirf tab dikhta hai jab
+  `eval/results/*.json` ho. History tab hataya (chat khud history hai). Use-case presets hataye.
+- **Check kiya (browser, desktop + mobile 375 px):** sign-in, English / Marathi / Hindi example → jawab +
+  stamps, Hinglish injection → "Blocked by the safety check", Bihar wala unanswerable → "Not in the
+  documents" + fixed refusal. Server logs mein error nahi. `ruff` OK, `pytest tests` → 141 passed.
+- Docs: DEMO_SCRIPT (sign-in, defaults, naya Marathi example, UI kya dikhata hai), README, VIVA_NOTES.
