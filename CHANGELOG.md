@@ -1222,3 +1222,26 @@ likha: widened pattern is test ka Hindi sawaal dekh ke bana, isliye 12/12 thoda 
 
 **Saath mein:** CLAUDE.md ka Environment section ab sahi provider batata hai: OpenAI
 (`gpt-4.1-mini` answer, `gpt-4o-mini` grader); Groq optional.
+
+---
+
+## Improvement #2 — expected answers ka human review (sheet tayyar, 2026-10-02)
+
+**Kya problem thi:** `eval/coop_questions.yaml` mein har sawaal `verified: false` hai. Translations
+native speaker ne check kiye the, lekin 58 expected answers sirf Claude ne PDF se milaaye the. Paper
+ki Limitations mein bhi ye likha hai. Kisi insaan ka check eval ko zyada bharosemand banata hai.
+
+**Kya banaya:**
+
+| File | Kaam |
+|---|---|
+| `eval/drafts/p10_answer_review.xlsx` (naya) | 58 English answerable sawaal: expected answer, file + page (PDF ka link), supporting text, aur "Sahi hai?" dropdown (Sahi / Galat) + "Sahi jawab" column. Pehli sheet "Kaise bharein" mein Hinglish instructions + reviewer naam/date. Translation review sheet jaisa hi format |
+| `scripts/build_coop_questions.py` | `answer_review()`: Sahi → us base question ke chaaron bhasha versions `verified: true`; Galat → reviewer ka sahi jawab expected_answer ban jaata hai, `verified: true`; khaali → `verified: false`. Galat par jawab na likha ho to build ruk jaata hai |
+| `eval/coop_questions.yaml` | Sirf header comment badla (verified ka matlab). Sawaalon ka data bilkul same (yaml load karke compare kiya) |
+| `tests/test_build_coop_questions.py` (naya) | Sahi / Galat / khaali rows, Galat bina jawab = error, sheet na ho = kuch verified nahi |
+
+**Abhi kya baaki hai (insaan ka kaam):** guide, koi dost ya tum khud sheet bharo (lagbhag 1–1.5 ghanta).
+Uske baad `uv run python scripts/build_coop_questions.py` chalega, aur README, paper (Limitations)
+aur VIVA_NOTES mein "expected answers not yet reviewed" wali line update hogi. Agar koi jawab Galat
+nikla to Exp 3 ke Ragas context precision/recall (jo expected answer use karte hain) dobara chalana
+hoga; recall@k, refusal aur hallucination par asar nahi.

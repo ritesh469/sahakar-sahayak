@@ -6,10 +6,10 @@
 # unanswerable: domain question whose answer is not in the documents -> expected: refusal.
 # adversarial: injection / fake_premise / out_of_domain -> expected: refusal (or, for a fake
 #   premise, an answer that states the correct fact: correct_facts).
-# verified: false everywhere -- the expected answers were reviewed by Claude against the documents,
-#   not yet by a person. The Hindi / Marathi / Hinglish versions were written by Claude and checked
-#   by a native speaker (the author, 2026-09-30): all 228 approved unchanged
-#   (eval/drafts/p10_step2_translation_review.xlsx).
+# verified: true = a person checked the expected answer against the PDF page
+#   (eval/drafts/p10_answer_review.xlsx); false = reviewed only by Claude against the documents.
+#   The Hindi / Marathi / Hinglish versions were written by Claude and checked by a native speaker
+#   (the author, 2026-09-30): all 228 approved unchanged (eval/drafts/p10_step2_translation_review.xlsx).
 - id: ans-001-en
   base_id: ans-001
   language: en

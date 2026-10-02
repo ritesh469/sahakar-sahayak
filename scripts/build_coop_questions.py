@@ -6,11 +6,14 @@ Inputs (eval/drafts/):
   p10_step1_review.csv,       'approve (Y/N)' column: N drops the base question; empty or Y keeps it
   p10_step3_review.csv
   p10_step2_translations.yaml the other languages of every base question
+  p10_answer_review.xlsx      a person's check of the English expected answers ('Sahi hai?':
+                              Sahi -> verified: true; Galat -> the corrected answer, verified: true;
+                              empty -> verified: false)
 
 Every base question is written in all four languages (en, hi, mr, hinglish) with the same
-base_id, type and relevant_documents, so results can be compared across languages. Nothing is
-marked verified: the translations were checked by a native speaker, the expected answers only by
-Claude.
+base_id, type and relevant_documents, so results can be compared across languages. An answerable
+question is marked verified only when a person approved (or corrected) its expected answer in
+p10_answer_review.xlsx; the translations were checked by a native speaker.
 
 Usage:
   uv run python scripts/build_coop_questions.py [--out eval/coop_questions.yaml]
@@ -39,10 +42,10 @@ HEADER = """\
 # unanswerable: domain question whose answer is not in the documents -> expected: refusal.
 # adversarial: injection / fake_premise / out_of_domain -> expected: refusal (or, for a fake
 #   premise, an answer that states the correct fact: correct_facts).
-# verified: false everywhere -- the expected answers were reviewed by Claude against the documents,
-#   not yet by a person. The Hindi / Marathi / Hinglish versions were written by Claude and checked
-#   by a native speaker (the author, 2026-09-30): all 228 approved unchanged
-#   (eval/drafts/p10_step2_translation_review.xlsx).
+# verified: true = a person checked the expected answer against the PDF page
+#   (eval/drafts/p10_answer_review.xlsx); false = reviewed only by Claude against the documents.
+#   The Hindi / Marathi / Hinglish versions were written by Claude and checked by a native speaker
+#   (the author, 2026-09-30): all 228 approved unchanged (eval/drafts/p10_step2_translation_review.xlsx).
 """
 
 
@@ -50,6 +53,30 @@ def approved(csv_path: Path) -> dict[str, bool]:
     with csv_path.open(encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f))
     return {r["base_id"]: not r["approve (Y/N)"].strip().upper().startswith("N") for r in rows}
+
+
+def answer_review(path: Path = DRAFTS / "p10_answer_review.xlsx") -> dict[str, str | None]:
+    """base_id -> None (expected answer approved) or the corrected answer, for the rows a person
+    has marked in the answer review sheet. Unmarked rows are left out (stay verified: false)."""
+    if not path.exists():
+        return {}
+    import openpyxl
+
+    rows = openpyxl.load_workbook(path, read_only=True)["Answers"].iter_rows(values_only=True)
+    header = [str(h or "") for h in next(rows)]
+    base_col, verdict_col, fix_col = (header.index(h) for h in
+                                      ("base_id", "Sahi hai?", "Sahi jawab (sirf Galat par)"))
+    out: dict[str, str | None] = {}
+    for row in rows:
+        verdict = str(row[verdict_col] or "").strip().lower()
+        fix = str(row[fix_col] or "").strip()
+        if verdict == "sahi":
+            out[row[base_col]] = None
+        elif verdict == "galat":
+            if not fix:
+                raise SystemExit(f"{row[base_col]}: marked Galat in {path.name} but no corrected answer")
+            out[row[base_col]] = fix
+    return out
 
 
 def ordered(q: dict) -> dict:
@@ -65,6 +92,7 @@ def build() -> list[dict]:
               + yaml.safe_load((DRAFTS / "p10_step3_candidates.yaml").read_text(encoding="utf-8")))
     keep = approved(DRAFTS / "p10_step1_review.csv") | approved(DRAFTS / "p10_step3_review.csv")
     translations = yaml.safe_load((DRAFTS / "p10_step2_translations.yaml").read_text(encoding="utf-8"))
+    reviewed = answer_review()
 
     questions = []
     for d in drafts:
@@ -92,6 +120,13 @@ def build() -> list[dict]:
                               "checked by a native speaker, approved unchanged")
             if d["type"] != "answerable":
                 q["expected_answer"] = _refusal_expectation(d, lang)
+            elif base in reviewed:
+                q["verified"] = True
+                if reviewed[base] is None:
+                    q["notes"] += "; expected answer checked by a person (p10_answer_review.xlsx)"
+                else:
+                    q["expected_answer"] = reviewed[base]
+                    q["notes"] += "; expected answer corrected by a person (p10_answer_review.xlsx)"
             questions.append(ordered(q))
     return questions
 
