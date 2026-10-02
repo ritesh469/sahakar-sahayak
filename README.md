@@ -62,7 +62,9 @@ refusal-aware prompt).
 
 - **Corpus:** 23 official PDFs ([data/sources.csv](data/sources.csv)): 9 English, 7 Marathi,
   4 Hindi, 3 bilingual English + Hindi; 673 pages. Categories: 13 government schemes,
-  4 cooperative schemes, 3 cooperative policy, 3 cooperative law.
+  4 cooperative schemes, 3 cooperative policy, 3 cooperative law. They are public documents of the
+  Government of India and the Government of Maharashtra and are not covered by the code's
+  [LICENSE](LICENSE).
 - **Chunks:** 3,557 (256 tokens), 1,969 (512), 1,296 (1024); every chunk keeps its page number
   ([results/ingestion_*.json](results/)).
 - **Evaluation set:** [eval/coop_questions.yaml](eval/coop_questions.yaml): 304 questions =
