@@ -3,6 +3,7 @@
 **A multilingual, hallucination-aware RAG chatbot for cooperative governance and government schemes.**
 Final-year project and research paper: *"Multilingual and Hallucination-Aware Retrieval-Augmented
 Generation for Cooperative Governance and Government Scheme Assistance"*.
+Ritesh Kumar, Department of Computer Engineering, BVPCOE, Pune.
 
 You ask a question in **English, Hindi, Marathi or Hinglish**. The system finds the right passages
 in 23 official government PDFs (cooperative laws, the National Cooperation Policy 2025, PM-KISAN,
@@ -10,7 +11,9 @@ PM-KMY, PMFBY, Maharashtra GRs and more) and answers **in the same language**, c
 `[file, p. N]` after every fact. If the documents do not contain the answer, it says so instead of
 making something up. Prompt-injection attempts in all four languages are blocked.
 
-> Built on top of an existing Kubernetes-ops RAG codebase (`EnterpriseRAG_live`). Its original
+> Built on top of an existing Kubernetes-ops RAG codebase,
+> [EnterpriseRAG_live](https://github.com/yashprogrammer/EnterpriseRAG_live) (MIT License, see
+> [LICENSE](LICENSE)). Its original
 > README and report are kept in [docs/README_original.md](docs/README_original.md) and
 > [docs/PROJECT_REPORT_original.md](docs/PROJECT_REPORT_original.md). The step-by-step history of
 > the changes is in [CHANGELOG.md](CHANGELOG.md).
