@@ -82,3 +82,6 @@ seed/docs/_originals/
 
 # Experiment run logs (P12/P13); per-question results in results/raw are kept
 results/logs/
+
+# Personal sponsorship outreach kit (email list, templates); not part of the project
+outreach/
