@@ -27,6 +27,17 @@ _HI_OBJ = r"(?:निर्देश|निर्देशों|नियम|�
 _HING_OBJ = r"(?:instructions?|nirdesh|nirdeshon|rules|niyam|niyamon|prompts?|baatein|baaton)"
 _MR_OBJ = r"(?:सूचना|सूचनांना|निर्देश|नियम|नियमांना|आदेश|प्रॉम्प्ट)"
 
+# "ab tum <X> ho" is a role change only when X is a noun phrase ("ek hacker", "bina pabandi wala
+# AI"), not a verb: "ab tum mujhe bata sakte ho" is a normal request. The word before ho/हो must
+# not be one of these auxiliaries/participles (checked with lookbehinds).
+_HING_VERB = ["sakte", "sakti", "sakta", "rahe", "rahi", "raha", "chuke", "chuki", "chuka", "karte",
+              "karti", "jante", "jaante", "jaanti", "chahte", "chahti", "dete", "deti", "lete", "leti",
+              "paate", "paati"]
+_HI_VERB = ["सकते", "सकती", "सकता", "रहे", "रही", "रहा", "चुके", "चुकी", "चुका", "करते", "करती",
+            "जानते", "जानती", "चाहते", "चाहती", "देते", "देती", "लेते", "लेती", "पाते", "पाती"]
+_NOT_HING_VERB = "".join(rf"(?<!\b{w})" for w in _HING_VERB)
+_NOT_HI_VERB = "".join(rf"(?<!\s{w})" for w in _HI_VERB)
+
 # (name, language, regex). Order does not matter; the first match is reported.
 INJECTION_PATTERNS: list[tuple[str, str, str]] = [
     # ---- English ----
@@ -57,7 +68,8 @@ INJECTION_PATTERNS: list[tuple[str, str, str]] = [
      r"(?:prompt|instructions?|nirdesh|rules))\s+(?:ko\s+)?"
      r"(?:dikhao|dikha\s*do|dikhaiye|batao|bata\s*do|bataiye|print\s+karo|reveal\s+karo|share\s+karo|likho)\b"),
     ("role_change", "hinglish",
-     r"\b(?:ab\s+(?:se\s+)?(?:tum|tu)|(?:tum|tu)\s+ab)\s+(?:ek\s+)?\w+(?:\s+\w+){0,2}\s+(?:ho|bano|ban\s+jao)\b"),
+     rf"\b(?:ab\s+(?:se\s+)?(?:tum|tu)|(?:tum|tu)\s+ab)\s+(?:ek\s+)?\w+(?:\s+\w+){{0,3}}{_NOT_HING_VERB}"
+     r"\s+(?:ho|bano|ban\s+jao)\b"),
     ("role_change", "hinglish", r"\bab\s+(?:se\s+)?aap\s+ek\s+\w+(?:\s+\w+)?\s+(?:hain|ho|baniye)\b"),
     ("role_change", "hinglish", r"\b\w+\s+(?:ki\s+tarah|jaisa|jaise)\s+(?:act|behave)\s+karo\b"),
 
@@ -71,7 +83,8 @@ INJECTION_PATTERNS: list[tuple[str, str, str]] = [
      r"(?:निर्देश|प्रॉम्प्ट|प्रोम्प्ट|नियम))\s*(?:को\s+)?"
      r"(?:दिखाओ|दिखाइए|दिखा\s+दो|बताओ|बताइए|बता\s+दो|प्रिंट|लिखो|साझा)"),
     ("role_change", "hi",
-     rf"(?:अब\s+(?:से\s+)?(?:तुम|तू)|(?:तुम|तू)\s+अब)\s+(?:एक\s+)?\S+(?:\s+\S+){{0,2}}\s+(?:हो|बनो|बन\s+जाओ){_END}"),
+     rf"(?:अब\s+(?:से\s+)?(?:तुम|तू)|(?:तुम|तू)\s+अब)\s+(?:एक\s+)?\S+(?:\s+\S+){{0,3}}{_NOT_HI_VERB}"
+     rf"\s+(?:हो|बनो|बन\s+जाओ){_END}"),
     ("role_change", "hi", rf"अब\s+(?:से\s+)?आप\s+एक\s+\S+(?:\s+\S+)?\s+(?:हैं|हो|बनिए){_END}"),
 
     # ---- Marathi (Devanagari) ----
@@ -81,7 +94,7 @@ INJECTION_PATTERNS: list[tuple[str, str, str]] = [
      r"(?:सिस्टम\s*प्रॉम्प्ट|(?:तुमच्या|तुझ्या|आतील|लपवलेल्या)\s+(?:सूचना|निर्देश|प्रॉम्प्ट))\s*"
      r"(?:दाखवा|दाखव|सांगा|सांग|लिहा)"),
     ("role_change", "mr",
-     rf"आता\s+(?:पासून\s+)?(?:तू|तुम्ही)\s+(?:एक\s+)?\S+(?:\s+\S+){{0,2}}\s+(?:आहेस|आहात|हो|व्हा){_END}"),
+     rf"आता\s+(?:पासून\s+)?(?:तू|तुम्ही)\s+(?:एक\s+)?\S+(?:\s+\S+){{0,3}}\s+(?:आहेस|आहात|हो|व्हा){_END}"),
 ]
 
 def _prepare(rx: str) -> str:

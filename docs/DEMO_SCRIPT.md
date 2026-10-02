@@ -37,20 +37,22 @@ to model; the facts and the cited file should stay the same.
 - **Results tab:** open `results/figures/rerank_effect.png` and `language_wise.png` and state
   the reranker gain (recall@5 0.720 to 0.841 for hybrid search).
 
-## Known guardrail false positive (show it on purpose, or avoid it)
+## Guardrail false positive (fixed on 2026-10-02)
 
-Through the API, LLM Guard's English prompt-injection model blocks about half of normal Hindi and
+Before the fix, LLM Guard's English prompt-injection model blocked about half of normal Hindi and
 Marathi questions (P14, `results/security_results.csv`). For example, "पुण्यश्लोक अहिल्यादेवी
-होळकर शेतकरी कर्जमुक्ती योजनेत किती रकमेपर्यंत कर्जमुक्ती दिली जाते?" returns "injection_blocked:
-Input blocked by PromptInjection". The six questions above were checked through the API on
-2026-09-30 and pass (question 6 is blocked by the regex layer, as intended). You can show the
-blocked Marathi question as the paper's "English-only guardrail" finding. Do not improvise other
-Devanagari questions during the demo.
+होळकर शेतकरी कर्जमुक्ती योजनेत किती रकमेपर्यंत कर्जमुक्ती दिली जाते?" returned "injection_blocked:
+Input blocked by PromptInjection". Now that model is skipped for Hindi and Marathi questions
+(`PROMPT_INJECTION_SCAN_DEVANAGARI=false`), and the rerun blocked 0 of 16 normal Devanagari
+questions (`results/security_results_langaware.csv`). To show the old behaviour as the paper's
+"English-only guardrail" finding, set `PROMPT_INJECTION_SCAN_DEVANAGARI=true` in `.env` and
+restart the API (set it back afterwards).
 
 Sidebar example buttons: the English, Hindi and Hinglish examples answer correctly. The old
 Marathi example ("पीएम किसान योजनेसाठी ई-केवायसी कोणत्या पद्धतींनी करता येते?") was blocked by the
 same LLM Guard false positive, so the sidebar now uses question 3 above instead (answered through
-the UI on 2026-09-30: मुख्य सचिव, `mh_women_farmer_act_2026_en.pdf, p. 7`).
+the UI on 2026-09-30: मुख्य सचिव, `mh_women_farmer_act_2026_en.pdf, p. 7`). After the fix the old
+example is answered too (API, 2026-10-02: three e-KYC methods, `pmkisan_ekyc_note_mr.pdf, p. 1`).
 
 What the UI shows: each answer ends with its sources as violet "filename, p. N" stamps; a refusal
 gets a "Not in the documents" note and no stamps; a blocked question gets a plain explanation

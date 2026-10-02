@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from app.config import settings
+from app.services.language import detect_language
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,15 @@ def _get_scanners() -> list[Any]:
     return _scanners
 
 
+def _scanners_for(text: str) -> list[Any]:
+    """All scanners, minus the English PromptInjection model for Hindi/Marathi text (unless
+    PROMPT_INJECTION_SCAN_DEVANAGARI=true): it flags normal Devanagari questions as injections."""
+    scanners = _get_scanners()
+    if settings.prompt_injection_scan_devanagari or detect_language(text) not in ("hi", "mr"):
+        return scanners
+    return [s for s in scanners if type(s).__name__ != "PromptInjection"]
+
+
 def scan_input(text: str) -> dict[str, Any]:
     if _SCAN_PROMPT is None:
         return {
@@ -50,7 +60,7 @@ def scan_input(text: str) -> dict[str, Any]:
         }
 
     try:
-        scanners = _get_scanners()
+        scanners = _scanners_for(text)
         sanitized, is_valid, scores = _SCAN_PROMPT(scanners, text)
         failed = [name for name, valid in is_valid.items() if not valid]
         return {

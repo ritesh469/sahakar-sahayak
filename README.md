@@ -174,7 +174,9 @@ Answers, hybrid + rerank, `gpt-4.1-mini` (judge `gpt-4o-mini`), 304 questions
 - HyDE, CRAG and Self-RAG do not reduce hallucination and are 3–6× slower. Self-RAG with the
   original refusal-penalising reviewer doubles hallucination (1 to 2 of 18).
 - Guardrails: no adversarial question succeeded. However, LLM Guard's English prompt-injection
-  model blocked 8 of 16 normal Hindi and Marathi questions.
+  model blocked 8 of 16 normal Hindi and Marathi questions. Skipping it for Hindi and Marathi
+  questions (and widening one regex pattern) brought this to 0 of 16, with every attack still
+  stopped ([results/security_results_langaware.csv](results/security_results_langaware.csv)).
 
 Graphs: [results/figures/](results/figures/).
 

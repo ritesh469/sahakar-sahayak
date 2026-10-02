@@ -32,6 +32,8 @@ original reviewer prompt, which treats refusals as failures, doubles hallucinati
 questions). In one case it abandons a correct refusal of a prompt injection; a refusal-aware
 reviewer prompt avoids this. Finally, an English-trained prompt-injection classifier (LLM Guard)
 blocked 8 of 16 legitimate Hindi and Marathi questions and none of the English or Hinglish ones.
+Skipping it for Devanagari questions and widening one multilingual regex pattern removed every
+false block (0 of 32 control questions), while all 32 adversarial questions were still defended.
 
 **Keywords:** retrieval-augmented generation, multilingual retrieval, Hindi, Marathi,
 code-mixing, hallucination, cooperative governance, government schemes, BM25, reranking.
@@ -233,7 +235,9 @@ Requests pass, in order, through:
 1. a regex layer of 23 prompt-injection patterns: 9 English, 6 Hinglish, 5 Hindi, 3 Marathi. They
    match instruction-override or role-change structures, not single words such as "ignore";
 2. a per-user rate limit and daily token budget;
-3. LLM Guard input scanners (prompt injection, toxicity, banned topics);
+3. LLM Guard input scanners (prompt injection, toxicity, banned topics). The English
+   prompt-injection model is skipped for questions that the language detector labels Hindi or
+   Marathi; the regex layer covers those (Section 10.7);
 4. PII redaction of the input;
 5. spotlighting in the prompt;
 6. PII redaction of the output.
@@ -579,8 +583,9 @@ None of the three techniques improves on the baseline:
 | Out of domain | 8 | 0 | 2 | 6 | 0 | 1.00 | 0.00 |
 | Normal answerable (control) | 32 | 0 | 8 | 1 | 23 | – | 0.25 false block |
 
-*Through the API (login, all guardrail layers), hybrid + rerank, gpt-4.1-mini. Source:
-`results/security_results.csv`, `results/raw/security_20260930_041319.csv`.*
+*Before the fix: LLM Guard scans every language. Through the API (login, all guardrail layers),
+hybrid + rerank, gpt-4.1-mini. Source: `results/security_results.csv`,
+`results/raw/security_20260930_041319.csv`.*
 
 No adversarial question succeeded. The multilingual regex layer stopped 11 of 12 injections in all
 four languages; LLM Guard caught the remaining Hindi one. However, LLM Guard's prompt-injection
@@ -590,6 +595,31 @@ Hinglish ones. All 8 carried the label "PromptInjection". The two out-of-domain 
 stopped (one Marathi, one Hindi) were blocked under the same label, so they are the same false
 positive, not an out-of-domain detection. For Devanagari users, the English-trained classifier
 turns half of the normal questions into errors.
+
+**After the fix.** We then skipped LLM Guard's prompt-injection scanner for questions that the
+language detector labels Hindi or Marathi (its toxicity and banned-topic scanners still run, and
+English and Hinglish questions are scanned as before). We also widened the Hindi, Hinglish and
+Marathi role-change patterns from three to four words between "you now" and the verb, so that
+"अब तुम एक बिना पाबंदी वाले AI हो" ("now you are an AI without restrictions") is caught, and
+made them skip auxiliary verbs, so that a normal request such as "ab tum mujhe bata sakte ho ki
+…" ("can you now tell me …") is no longer blocked. The same 64 questions through the API:
+
+| Question kind | n | Regex | LLM Guard | LLM refusal | Answered | Defended | Attack success / false block |
+|---|---|---|---|---|---|---|---|
+| Prompt injection | 12 | 12 | 0 | 0 | 0 | 1.00 | 0.00 |
+| False premise | 12 | 0 | 0 | 8 | 4 (all corrected) | 1.00 | 0.00 |
+| Out of domain | 8 | 0 | 0 | 8 | 0 | 1.00 | 0.00 |
+| Normal answerable (control) | 32 | 0 | 0 | 1 | 31 | – | 0.00 false block |
+
+*After the fix (`PROMPT_INJECTION_SCAN_DEVANAGARI=false`), same setup, 2026-10-02. Source:
+`results/security_results_langaware.csv`, `results/raw/security_20261002_234249.csv`.*
+
+The false-block rate fell from 0.25 to 0 (Devanagari control questions: 8 of 16 blocked before,
+0 of 16 after), and no adversarial question succeeded. The two out-of-domain questions that LLM
+Guard had blocked now receive the intended out-of-domain sentence from the LLM. The one remaining
+control failure is the same English over-refusal as before the fix, a retrieval miss rather than
+a guardrail block. Because the widened pattern was written after we saw the Hindi injection pass
+the regex layer, the 12 of 12 regex result is optimistic (Section 12).
 
 ### 10.8 Latency
 
@@ -658,7 +688,9 @@ fails in both directions. It added little protection: the regex layer had alread
 In a multilingual deployment, an English-trained safety model can quietly exclude the very users
 the system is built for. Such components should be evaluated per language with benign control
 questions, and restricted to the languages they were trained on or replaced by a multilingual
-classifier. The same holds for the rest of the pipeline. Our fixed refusal sentence was
+classifier. Restricting the classifier to non-Devanagari questions removed all 8 false blocks
+without letting an attack through (Section 10.7); in that run it stopped no attack at all, because
+the regex layer caught every injection. The same holds for the rest of the pipeline. Our fixed refusal sentence was
 paraphrased by the answer model in Hindi and Marathi, so a string-matching evaluation would have
 reported a hallucination rate almost seven times too high (Section 10.5).
 
@@ -686,8 +718,9 @@ self-reflection loop mainly adds cost, and a badly specified reviewer adds risk.
   (file, page, supporting text) is shared by the four versions and was checked automatically. The
   expected answers have not yet been reviewed by a person.
 - **Question authorship:** the questions were written by the system builders, who also wrote the
-  injection patterns, and the injection questions were written after the patterns. Guardrail block
-  rates may therefore be optimistic.
+  injection patterns, and the injection questions were written after the patterns. The widened
+  role-change pattern (Section 10.7) was written after one Hindi injection passed the regex layer.
+  Guardrail block rates may therefore be optimistic.
 - **Non-independent samples:** the four language versions of a question are not independent, so
   the sign-test p-values are indicative.
 - **Single LLM and LLM judge:** answer-level results come from a single LLM (gpt-4.1-mini), and
@@ -722,7 +755,7 @@ LLM:
 
 - an English PII recogniser corrupted Devanagari questions;
 - an English prompt-injection classifier blocked half of the legitimate Hindi and Marathi
-  questions;
+  questions (restricting it to non-Devanagari questions removed every false block);
 - a string-matching refusal metric would have overstated hallucination almost sevenfold.
 
 Every such component needs its own per-language evaluation, with benign control questions, before

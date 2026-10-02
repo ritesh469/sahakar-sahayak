@@ -77,6 +77,10 @@ class Settings(BaseSettings):
     reserved_output_tokens: int = 1_000
 
     prompt_injection_threshold: float = 0.75
+    # llm-guard PromptInjection is an English model: on Hindi/Marathi (Devanagari) questions it
+    # blocked 8 of 16 normal ones (P14). false = skip it for those; the 4-language regex patterns
+    # still run first. true = old behaviour (scan every language), kept for comparison.
+    prompt_injection_scan_devanagari: bool = False
     toxicity_threshold: float = 0.75
     output_toxicity_threshold: float = 0.5
     # llm-guard PII redaction of PERSON names (English NER): off, it corrupts Hindi/Marathi text
